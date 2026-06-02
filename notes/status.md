@@ -36,7 +36,7 @@ Derived:
 Poche famiglie di testi concentrano una quota sproporzionata della massa documentale.
 
 In particolare:
-- `decreto_like`: `6.99%` degli atti ma `29.96%` del testo
+- `decreto_like`: `6.99%` degli atti ma `29.94%` del testo
 - `bilancio`: `0.57%` degli atti ma `7.58%` del testo
 
 ## Prossimo passo

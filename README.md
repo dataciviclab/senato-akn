@@ -20,7 +20,7 @@ Nel corpus `Leg19/ddlpres`, poche famiglie di testi concentrano una quota spropo
 
 | Famiglia | % atti | % testo | Rapporto testo/atti |
 |---|---|---|---|
-| **Decreto-like** (decreti-legge, conversioni) | 6.99% | 29.96% | 4.28× |
+| **Decreto-like** (decreti-legge, conversioni) | 6.99% | 29.94% | 4.28× |
 | **Bilancio** (previsione, rendiconto) | 0.57% | 7.58% | 13.37× |
 | **Delega** | 6.33% | 8.96% | 1.42× |
 | **Istituzione** | 14.08% | 7.55% | 0.54× |
