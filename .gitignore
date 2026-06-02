@@ -1,9 +1,17 @@
+# Dati raw/interim (non committati)
 data/raw/*
 data/interim/*
 !data/raw/.gitkeep
 !data/interim/.gitkeep
 
+# Python
 __pycache__/
 *.pyc
+*.egg-info/
 .venv/
 .env
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/

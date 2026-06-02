@@ -1,0 +1,37 @@
+name: test
+on:
+  pull_request:
+    paths:
+      - "**.py"
+      - "Makefile"
+      - "pyproject.toml"
+      - "requirements.txt"
+  push:
+    branches: [main]
+    paths:
+      - "**.py"
+      - "Makefile"
+      - "pyproject.toml"
+      - "requirements.txt"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package and dependencies
+        run: |
+          pip install -e ".[dev]"
+
+      - name: Run tests
+        run: |
+          python3 -m pytest tests/ -v --tb=short
+
+      - name: CI smoke (extract 2 files + summarize)
+        run: |
+          python3 scripts/extract_leg19_ddlpres.py --limit 2 --out /tmp/senato-ci-test.csv
+          python3 scripts/build_summaries.py --input /tmp/senato-ci-test.csv
