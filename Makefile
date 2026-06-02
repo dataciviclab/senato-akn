@@ -1,12 +1,15 @@
 PYTHON ?= python3
 VENV := .venv
+VENV_PYTHON := $(VENV)/bin/python3
 
-# --- Setup ambiente ---
+# --- Setup ambiente (idempotente) ---
+
+$(VENV):
+	$(PYTHON) -m venv $(VENV)
 
 .PHONY: install
-install:
-	$(PYTHON) -m venv $(VENV)
-	$(VENV)/bin/pip install -e ".[dev]"
+install: $(VENV)
+	$(VENV_PYTHON) -m pip install -e ".[dev]"
 
 # --- Estrazione ---
 
@@ -22,17 +25,20 @@ summarize:
 .PHONY: all
 all: extract summarize
 
-# --- Test ---
+# --- Test (richiede make install prima) ---
 
 .PHONY: test
-test:
-	$(PYTHON) -m pytest tests/ -v --tb=short
+test: install
+	$(VENV_PYTHON) -m pytest tests/ -v --tb=short
+
+# --- CI (auto-sufficiente da checkout pulito) ---
 
 .PHONY: ci
-ci:
-	$(PYTHON) -m pytest tests/ -v --tb=short
-	$(PYTHON) scripts/extract_leg19_ddlpres.py --limit 2 --out /tmp/senato-ci-test.csv
-	$(PYTHON) scripts/build_summaries.py --input /tmp/senato-ci-test.csv --out-families /tmp/senato-ci-families.csv --out-monthly /tmp/senato-ci-monthly.csv
+ci: install
+	$(VENV_PYTHON) -m pytest tests/ -v --tb=short
+	$(VENV_PYTHON) scripts/extract_leg19_ddlpres.py --limit 2 --out /tmp/senato-ci-test.csv
+	$(VENV_PYTHON) scripts/build_summaries.py --input /tmp/senato-ci-test.csv \
+	  --out-families /tmp/senato-ci-families.csv --out-monthly /tmp/senato-ci-monthly.csv
 
 # --- Pulizia ---
 
