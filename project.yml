@@ -1,0 +1,27 @@
+project:
+  slug: senato-akn
+  title: Senato Akoma Ntoso
+  status: public-exploration
+  kind: corpus-project
+
+source:
+  owner: SenatoDellaRepubblica
+  repo: AkomaNtosoBulkData
+  url: https://github.com/SenatoDellaRepubblica/AkomaNtosoBulkData
+  format: xml-akoma-ntoso
+  license: CC BY 3.0
+
+scope:
+  legislature: Leg19
+  document_type: ddlpres
+  record_unit: document
+  public_stage: public
+
+outputs:
+  derived: data/derived/
+
+decisions:
+  toolkit: no
+  dataset_incubator: no
+  public_discussion: yes
+  next_step: validate finding via public discussion, evaluate expansion to emend or multi-leg

@@ -1,0 +1,9 @@
+data/raw/*
+data/interim/*
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+
+__pycache__/
+*.pyc
+.venv/
+.env
