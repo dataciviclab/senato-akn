@@ -1,126 +1,44 @@
-from pathlib import Path
+#!/usr/bin/env python3
+"""CLI thin: estrazione corpus Leg19/ddlpres.
+
+Usage:
+    python3 scripts/extract_leg19_ddlpres.py
+    python3 scripts/extract_leg19_ddlpres.py --out data/derived/leg19_ddlpres_v0.csv
+    python3 scripts/extract_leg19_ddlpres.py --drop-zero-text --limit 10
+"""
+from __future__ import annotations
+
 import argparse
-import csv
-import re
-import time
-import xml.etree.ElementTree as ET
+import logging
 
-import requests
+from lab_connectors.http import HttpClient
 
+from senato_akn.extract import run_extract
 
-NS = {"an": "http://docs.oasis-open.org/legaldocml/ns/akn/3.0/CSD03"}
-REPO_API_ROOT = "https://api.github.com/repos/SenatoDellaRepubblica/AkomaNtosoBulkData"
-RAW_ROOT = "https://raw.githubusercontent.com/SenatoDellaRepubblica/AkomaNtosoBulkData/master/Leg19"
-ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUT = ROOT / "data" / "derived" / "leg19_ddlpres_v0.csv"
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s [%(name)s] %(message)s",
+)
 
-
-def gh_json(session: requests.Session, url: str) -> object:
-    response = session.get(url, timeout=120)
-    response.raise_for_status()
-    return response.json()
-
-
-def first_text(root: ET.Element, xpath: str) -> str:
-    node = root.find(xpath, NS)
-    if node is None:
-        return ""
-    return " ".join("".join(node.itertext()).split())
-
-
-def attr_value(root: ET.Element, xpath: str, attr: str) -> str:
-    node = root.find(xpath, NS)
-    if node is None:
-        return ""
-    return node.attrib.get(attr, "")
-
-
-def normalize_space(text: str) -> str:
-    return re.sub(r"\s+", " ", text).strip()
-
-
-def body_text(root: ET.Element) -> str:
-    parts = []
-    for node in root.findall(".//an:body//an:p", NS):
-        text = normalize_space("".join(node.itertext()))
-        if text:
-            parts.append(text)
-    return " ".join(parts)
-
-
-def discover_files(session: requests.Session) -> list[str]:
-    repo_root = gh_json(session, f"{REPO_API_ROOT}/contents?ref=master")
-    leg19 = next(item for item in repo_root if item["name"] == "Leg19")
-    sha = leg19["sha"]
-    tree = gh_json(session, f"{REPO_API_ROOT}/git/trees/{sha}?recursive=1")["tree"]
-    return sorted(
-        item["path"]
-        for item in tree
-        if item["path"].endswith(".akn.xml") and "/ddlpres/" in item["path"]
-    )
-
-
-def parse_one(session: requests.Session, path: str) -> dict[str, object]:
-    url = f"{RAW_ROOT}/{path}"
-    response = session.get(url, timeout=120)
-    response.raise_for_status()
-    root = ET.fromstring(response.text)
-    text = body_text(root)
-    return {
-        "legislatura": "Leg19",
-        "atto_dir": path.split("/")[0],
-        "document_id": Path(path).stem,
-        "file_name": path.split("/")[-1],
-        "path": path,
-        "raw_url": url,
-        "work_uri": attr_value(root, ".//an:FRBRWork/an:FRBRuri", "value"),
-        "expression_uri": attr_value(root, ".//an:FRBRExpression/an:FRBRuri", "value"),
-        "manifestation_uri": attr_value(root, ".//an:FRBRManifestation/an:FRBRuri", "value"),
-        "work_date": attr_value(root, ".//an:FRBRWork/an:FRBRdate", "date"),
-        "expression_date": attr_value(root, ".//an:FRBRExpression/an:FRBRdate", "date"),
-        "manifestation_date": attr_value(root, ".//an:FRBRManifestation/an:FRBRdate", "date"),
-        "doc_title": first_text(root, ".//an:docTitle"),
-        "short_title": first_text(root, ".//an:shortTitle"),
-        "articles_count": len(root.findall(".//an:article", NS)),
-        "paragraphs_count": len(root.findall(".//an:body//an:p", NS)),
-        "text_len": len(text),
-        "text_preview": text[:240],
-        "text_integrale": text,
-    }
+DEFAULT_OUT = __file__  # segnaposto, verrà sovrascritto dal default di run_extract
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--out", default=str(DEFAULT_OUT))
-    parser.add_argument("--limit", type=int, default=0)
-    parser.add_argument("--drop-zero-text", action="store_true")
-    parser.add_argument("--sleep-ms", type=int, default=0)
+    parser = argparse.ArgumentParser(description="Estrai corpus Leg19/ddlpres")
+    parser.add_argument("--out", default="", help="Path CSV output")
+    parser.add_argument("--limit", type=int, default=0, help="Max file da processare")
+    parser.add_argument("--drop-zero-text", action="store_true", help="Filtra record con text_len==0")
+    parser.add_argument("--sleep-ms", type=int, default=0, help="Pausa tra download (ms)")
     args = parser.parse_args()
 
-    session = requests.Session()
-    session.headers.update({"User-Agent": "DataCivicLab/1.0"})
-    files = discover_files(session)
-    if args.limit > 0:
-        files = files[: args.limit]
-
-    rows = []
-    for idx, path in enumerate(files, start=1):
-        rows.append(parse_one(session, path))
-        if args.sleep_ms > 0:
-            time.sleep(args.sleep_ms / 1000.0)
-        if idx % 100 == 0:
-            print(f"parsed {idx}/{len(files)}")
-
-    if args.drop_zero_text:
-        rows = [r for r in rows if int(r["text_len"]) > 0]
-
-    out = Path(args.out)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with out.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
-    print(f"wrote {len(rows)} rows to {out}")
+    with HttpClient(timeout=120) as client:
+        run_extract(
+            client,
+            out=args.out or None,
+            limit=args.limit,
+            drop_zero_text=args.drop_zero_text,
+            sleep_ms=args.sleep_ms,
+        )
     return 0
 
 
