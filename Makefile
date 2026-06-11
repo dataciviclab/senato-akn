@@ -15,8 +15,11 @@ install: $(VENV)
 
 .PHONY: extract
 extract:
-	$(PYTHON) scripts/extract_leg19_ddlpres.py --out data/derived/leg19_ddlpres_v0.csv
-	$(PYTHON) scripts/extract_leg19_ddlpres.py --out data/derived/leg19_ddlpres_v0_nonzero.csv --drop-zero-text
+	$(PYTHON) scripts/extract.py --drop-zero-text
+
+.PHONY: extract-full
+extract-full:
+	$(PYTHON) scripts/extract.py --tipologie all --drop-zero-text --sleep-ms 100
 
 .PHONY: summarize
 summarize:

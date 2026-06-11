@@ -10,9 +10,10 @@ Questo progetto estrae ed esplora il corpus legislativo del Senato della Repubbl
 |---|---|
 | **Fonte** | [SenatoDellaRepubblica/AkomaNtosoBulkData](https://github.com/SenatoDellaRepubblica/AkomaNtosoBulkData) |
 | **Legislatura** | Leg19 (2022-oggi) |
-| **Tipologia** | `ddlpres` — disegni di legge presentati |
-| **Unità di analisi** | Documento (testo legislativo con metadati strutturali) |
-| **Stato progetto** | Pubblico — esplorativo. Perimetro stretto, espansione futura da valutare |
+| **Documenti estratti** | `ddlpres` ✅ (1.095), `ddlmess` ✅ (214), `ddlcomm` ✅ (162) |
+| **In attesa di parsing** | `emend` (18.563), `emendc` (43.229), `resaula` (501), `sommcomm` (4.353) |
+| **Totale Leg19** | 68.117 file XML, ~786 MB |
+| **Stato progetto** | Attivo — perimetro in espansione |
 
 ## Finding principale
 
@@ -32,45 +33,69 @@ In alcuni mesi, i decreti superano il 60% del testo totale pur essendo meno del 
 
 ## Cosa contiene questo repo
 
-- `scripts/extract_leg19_ddlpres.py` — estrazione del corpus da GitHub API + parsing XML Akoma Ntoso
-- `scripts/build_summaries.py` — aggregazioni per famiglie e per mese
-- `data/derived/` — CSV derivati (v0 del corpus e summary)
-- `notes/` — finding, domande, stato del progetto
-- `Makefile` — target `extract` e `summarize`
+```
+scripts/
+├── extract.py                   # Estrazione parametrizzata (tipologia, legislatura)
+├── extract_leg19_ddlpres.py     # Alias backward compat (delega a extract.py)
+├── build_summaries.py           # Aggregazioni per famiglie e mese
+└── explore_leg19.py             # Analisi esplorativa del corpus
+
+senato_akn/
+├── extract.py   # Core: discover_files, fetch_and_parse, run_extract
+├── parser.py    # Parsing XML Akoma Ntoso (funzioni pure)
+├── classifier.py # Classificazione in famiglie tematiche
+└── summarize.py  # Logica di aggregazione
+
+data/derived/    # CSV generati dall'estrazione (non in git, vedi CI)
+notes/           # Finding, domande, stato
+.github/workflows/
+├── test.yml           # Test + smoke su PR/push
+├── build.yml          # Daily: estrazione ddlpres
+└── build-weekly.yml   # Weekly: full Leg19 corpus
+```
 
 ## Come eseguire
 
 ```bash
-# 1. Clona
-git clone https://github.com/dataciviclab/senato-akn
-cd senato-akn
+# 1. Installa
+pip install -e ".[dev]"
 
-# 2. Installa dipendenze
-pip install -r requirements.txt
+# 2. Estrai Leg19/ddlpres (1.095 file, ~2 min)
+python3 scripts/extract.py
 
-# 3. Estrai il corpus (Leg19/ddlpres)
-make extract
+# 3. Altre tipologie
+python3 scripts/extract.py --tipologie ddlmess,ddlcomm
 
-# 4. Genera summary
-make summarize
+# 4. Tutto Leg19
+python3 scripts/extract.py --tipologie all --drop-zero-text
+
+# 5. Altre legislature
+python3 scripts/extract.py --legislatura Leg18 --tipologie ddlpres
+
+# 6. Genera summary
+python3 scripts/build_summaries.py
 ```
 
-L'estrazione scarica i file XML via GitHub API e li parserizza in una tabella CSV (~1058 documenti). Con `--drop-zero-text` si filtrano i record con testo vuoto (atti multi-file).
+L'estrazione scarica i file XML via GitHub API e li parserizza in CSV.
+Con `--drop-zero-text` si filtrano i record con testo vuoto (atti multi-file).
+Con `--limit N` si processano solo i primi N file (utile per test).
 
-## Limiti attuali
+## CI / Schedule
 
-- Copre solo **Leg19** e solo **ddlpres** — non emendamenti, resoconti, atti commissione
-- I dati si basano sul [bulk GitHub del Senato](https://github.com/SenatoDellaRepubblica/AkomaNtosoBulkData), aggiornato dalla fonte
-- Non include votazioni, iter parlamentare o comportamento individuale dei senatori
-- Il parsing XML è limitato ai metadati FRBR + body text + conteggio articoli
+| Trigger | Cosa fa | Quando |
+|---|---|---|
+| **Schedule daily** (02:00 UTC) | Estrae `ddlpres` | Ogni notte |
+| **Schedule weekly** (dom 04:00 UTC) | Estrae full Leg19 | Domenica |
+| **PR / push** | Test + smoke (2 file) | Su codice |
+| **workflow_dispatch** | Estrazione manuale | Quando serve |
 
-## Domande da esplorare
+I CSV derivati sono disponibili come **GitHub Artifact** (build → download, non in git).
 
-1. **Quanto pesa la decretazione d'urgenza per volume testuale, non per numero di atti?** — finding già verificato
-2. **Quali famiglie legislative occupano davvero il corpus del Senato?** — analisi per peso documentale
-3. **Quanto incidono bilanci e decreti sul volume complessivo?** — confronto già disponibile nei summary
+## Prossimi passi
 
-Domande che richiedono parsing aggiuntivo (emendamenti, legislature precedenti) sono rimandate.
+1. **Estendere il parser** per `<an:amendment>` (emendamenti) e `<an:debate>` (resoconti)
+2. **Estrarre emendamenti Aula** (18k file) — cuore politico dell'iter legislativo
+3. **Incrociare con italia-corpus**: ciò che viene proposto (Senato) vs ciò che diventa legge
 
 ## Partecipa
 
@@ -83,7 +108,6 @@ Domande che richiedono parsing aggiuntivo (emendamenti, legislature precedenti) 
 senato-akn fa parte del [DataCivicLab](https://github.com/dataciviclab): un osservatorio civico sui dati pubblici italiani.
 
 Questo repository è un **progetto corpus-based autonomo** — non segue il funnel standard `dataset-incubator`/`toolkit` perché il formato XML Akoma Ntoso richiede un approccio diverso dalle pipeline tabellari. Se emergeranno altri corpus XML nel Lab, potrebbe nascere un'estrazione riusabile.
-
 
 ## Licenza
 
