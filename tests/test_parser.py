@@ -3,7 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from senato_akn.parser import parse_xml, body_text, first_text, normalize_space, attr_value
+from senato_akn.parser import (
+    parse_xml, body_text, first_text, normalize_space, attr_value,
+    _detect_doc_type, _amendment_text, _amendment_act_ref,
+)
 import xml.etree.ElementTree as ET
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
@@ -135,3 +138,50 @@ class TestParseXml:
         result = parse_xml(xml_bytes)
         assert result["document_id"] == ""
         assert result["file_name"] == ""
+
+
+# ---------------------------------------------------------------------------
+# Test per documenti <an:amendment> (emendamenti)
+# ---------------------------------------------------------------------------
+
+
+class TestParseAmendment:
+    """Test su fixture XML di un emendamento reale (sample-emend.akn.xml)."""
+
+    @pytest.fixture
+    def xml_bytes(self) -> bytes:
+        path = FIXTURE_DIR / "sample-emend.akn.xml"
+        return path.read_bytes()
+
+    def test_detect_amendment(self, xml_bytes: bytes) -> None:
+        root = ET.fromstring(xml_bytes)
+        assert _detect_doc_type(root) == "amendment"
+
+    def test_text_nonempty(self, xml_bytes: bytes) -> None:
+        root = ET.fromstring(xml_bytes)
+        text = _amendment_text(root)
+        assert len(text) > 0
+        assert "MARTON" in text  # proponente
+        assert "Il Senato" in text
+
+    def test_active_ref(self, xml_bytes: bytes) -> None:
+        root = ET.fromstring(xml_bytes)
+        ref = _amendment_act_ref(root)
+        assert "Congiunzione" in ref
+
+    def test_parse_xml_returns_amendment_fields(self, xml_bytes: bytes) -> None:
+        result = parse_xml(xml_bytes, path="Atto00055286/emend/test.akn.xml")
+        assert result["doc_type"] == "amendment"
+        assert result["FRBRsubtype"] == "EMEND"
+        assert result["FRBRnumber"] == "G1.102"
+        assert result["FRBRname"] == "Ordine del giorno"
+        assert result["active_ref"] != ""
+        assert result["text_len"] > 0
+
+    def test_parse_xml_backward_compat_act(self) -> None:
+        """ddlpres continua a funzionare (doc_type=act)."""
+        path = FIXTURE_DIR / "sample.akn.xml"
+        result = parse_xml(path.read_bytes(), path=FIXTURE_PATH)
+        assert result["doc_type"] == "act"
+        assert result["text_len"] > 0
+        assert result["FRBRsubtype"] == ""  # solo per amendment

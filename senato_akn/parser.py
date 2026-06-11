@@ -50,6 +50,54 @@ def body_text(root: ET.Element) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Supporto per documenti <an:amendment> (emendamenti)
+# ---------------------------------------------------------------------------
+
+
+def _detect_doc_type(root: ET.Element) -> str:
+    """Rileva il tipo di documento Akoma Ntoso in base al tag radice.
+
+    Returns: ``act``, ``amendment``, ``debate``, o ``unknown``.
+    """
+    for child in root:
+        tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+        if tag in ("act", "bill", "doc"):
+            return "act"
+        if tag == "amendment":
+            return "amendment"
+        if tag == "debate":
+            return "debate"
+    return "unknown"
+
+
+def _amendment_text(root: ET.Element) -> str:
+    """Testo completo di un documento di tipo ``amendment``.
+
+    Estrae da:
+    - ``<an:preface>/<an:p>`` (premessa)
+    - ``<an:amendmentBody>/<an:amendmentContent>`` (contenuto)
+    """
+    parts: list[str] = []
+    for node in root.findall(".//an:preface//an:p", NS):
+        text = normalize_space("".join(node.itertext()))
+        if text:
+            parts.append(text)
+    for node in root.findall(".//an:amendmentBody//an:p", NS):
+        text = normalize_space("".join(node.itertext()))
+        if text:
+            parts.append(text)
+    return " ".join(parts)
+
+
+def _amendment_act_ref(root: ET.Element) -> str:
+    """Estrae il riferimento all'atto originale da un emendamento (activeRef)."""
+    ref = root.find(".//an:references//an:activeRef", NS)
+    if ref is not None:
+        return ref.attrib.get("showAs", ref.attrib.get("href", ""))
+    return ""
+
+
+# ---------------------------------------------------------------------------
 # Parsing di un intero documento Akoma Ntoso
 # ---------------------------------------------------------------------------
 
@@ -62,11 +110,11 @@ def parse_xml(
 ) -> dict[str, Any]:
     """Parsa un documento Akoma Ntoso e restituisce i campi estratti.
 
+    Supporta: ``<an:act>`` (ddlpres, ddlmess, ddlcomm), ``<an:amendment>`` (emendamenti).
+
     Args:
         xml_content: Contenuto XML (bytes o str).
         path: Path relativo del file (es. ``Atto00055177/ddlpres/...``).
-              Se ``None``, i campi ``path``, ``file_name`` e ``atto_dir``
-              vengono lasciati vuoti.
         legislatura: Etichetta della legislatura (default ``Leg19``).
 
     Returns:
@@ -75,15 +123,24 @@ def parse_xml(
         manifestation_uri, work_date, expression_date,
         manifestation_date, doc_title, short_title, articles_count,
         paragraphs_count, text_len, text_preview, text_integrale.
+        Per emendamenti: FRBRsubtype, FRBRnumber, FRBRname, active_ref.
     """
     root = ET.fromstring(xml_content) if isinstance(xml_content, bytes) else ET.fromstring(xml_content.encode("utf-8"))
 
-    text = body_text(root)
+    doc_type = _detect_doc_type(root)
+
+    # Estrazione testo in base al tipo
+    if doc_type == "amendment":
+        text = _amendment_text(root)
+    else:
+        text = body_text(root)
+
     doc_title = first_text(root, ".//an:docTitle")
     short_title = first_text(root, ".//an:shortTitle")
 
     out: dict[str, Any] = {
         "legislatura": legislatura,
+        "doc_type": doc_type,
         "atto_dir": "",
         "document_id": "",
         "file_name": "",
@@ -104,10 +161,16 @@ def parse_xml(
         "text_integrale": text,
     }
 
+    # Campi specifici per emendamenti
+    out["FRBRsubtype"] = attr_value(root, ".//an:FRBRWork/an:FRBRsubtype", "value") if doc_type == "amendment" else ""
+    out["FRBRnumber"] = attr_value(root, ".//an:FRBRWork/an:FRBRnumber", "value") if doc_type == "amendment" else ""
+    out["FRBRname"] = attr_value(root, ".//an:FRBRWork/an:FRBRname", "value") if doc_type == "amendment" else ""
+    out["active_ref"] = _amendment_act_ref(root) if doc_type == "amendment" else ""
+
     if path:
         p = Path(path)
         out["atto_dir"] = p.parts[0] if p.parts else ""
-        out["document_id"] = p.stem  # rimuove .xml
+        out["document_id"] = p.stem
         out["file_name"] = p.name
 
     return out
