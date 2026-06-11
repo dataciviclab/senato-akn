@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""CLI thin: estrazione corpus Leg19/ddlpres.
+"""CLI thin: estrazione corpus Leg19/ddlpres (backward compat).
 
 Usage:
     python3 scripts/extract_leg19_ddlpres.py
-    python3 scripts/extract_leg19_ddlpres.py --out data/derived/leg19_ddlpres_v0.csv
-    python3 scripts/extract_leg19_ddlpres.py --drop-zero-text --limit 10
+    python3 scripts/extract_leg19_ddlpres.py --out path.csv --limit 10 --drop-zero-text
+
+Delega a ``run_extract`` con parametri default.
 """
 from __future__ import annotations
 
@@ -15,20 +16,15 @@ from lab_connectors.http import HttpClient
 
 from senato_akn.extract import run_extract
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s [%(name)s] %(message)s",
-)
-
-DEFAULT_OUT = __file__  # segnaposto, verrà sovrascritto dal default di run_extract
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Estrai corpus Leg19/ddlpres")
-    parser.add_argument("--out", default="", help="Path CSV output")
-    parser.add_argument("--limit", type=int, default=0, help="Max file da processare")
-    parser.add_argument("--drop-zero-text", action="store_true", help="Filtra record con text_len==0")
-    parser.add_argument("--sleep-ms", type=int, default=0, help="Pausa tra download (ms)")
+    parser = argparse.ArgumentParser(description="Estrai corpus Leg19/ddlpres (backward compat)")
+    parser.add_argument("--out", default="")
+    parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--drop-zero-text", action="store_true")
+    parser.add_argument("--sleep-ms", type=int, default=0)
     args = parser.parse_args()
 
     with HttpClient(timeout=120) as client:
@@ -38,6 +34,8 @@ def main() -> int:
             limit=args.limit,
             drop_zero_text=args.drop_zero_text,
             sleep_ms=args.sleep_ms,
+            legislatura="Leg19",
+            tipologie=["ddlpres"],
         )
     return 0
 
