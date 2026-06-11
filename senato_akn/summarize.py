@@ -161,7 +161,7 @@ def run_summarize(
     """Esegue le aggregazioni complete e scrive i CSV.
 
     Args:
-        input_path: Path del CSV corpus. Default: ``data/derived/leg19_ddlpres_v0_nonzero.csv``.
+        input_path: Path del CSV corpus. Default: ``data/derived/leg19_ddlpres_v0.csv``.
         out_families: Path output families. Default: ``data/derived/families_summary.csv``.
         out_monthly: Path output monthly. Default: ``data/derived/decreto_monthly_summary.csv``.
 
@@ -169,7 +169,7 @@ def run_summarize(
         Dict con chiavi ``families`` e ``monthly`` mapping ai path scritti.
     """
     root = Path(__file__).resolve().parents[1]
-    input_path = Path(input_path) if input_path else root / "data" / "derived" / "leg19_ddlpres_v0_nonzero.csv"
+    input_path = Path(input_path) if input_path else root / "data" / "derived" / "leg19_ddlpres_v0.csv"
     out_families = Path(out_families) if out_families else root / "data" / "derived" / "families_summary.csv"
     out_monthly = Path(out_monthly) if out_monthly else root / "data" / "derived" / "decreto_monthly_summary.csv"
 

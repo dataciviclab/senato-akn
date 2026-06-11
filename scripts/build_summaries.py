@@ -3,7 +3,7 @@
 
 Usage:
     python3 scripts/build_summaries.py
-    python3 scripts/build_summaries.py --input data/derived/leg19_ddlpres_v0_nonzero.csv
+    python3 scripts/build_summaries.py --input data/derived/leg19_ddlpres_v0.csv
 """
 from __future__ import annotations
 
