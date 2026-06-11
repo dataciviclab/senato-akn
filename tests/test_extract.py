@@ -4,7 +4,14 @@ from pathlib import Path
 from lab_connectors.http.types import HttpResult
 from lab_connectors.testing import FakeHttpClient, fake_response
 
-from senato_akn.extract import discover_files, fetch_and_parse
+from senato_akn.extract import (
+    _all_tipologie,
+    _default_out_path,
+    _extract_tipologia,
+    discover_files,
+    fetch_and_parse,
+    raw_root,
+)
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
 
@@ -30,6 +37,14 @@ def _make_fake_client(tree_items: list[dict]) -> FakeHttpClient:
         err=None,
     )
 
+    # Risposta per /git/trees/aaa?recursive=1 (Leg13, per test multi-legislatura)
+    client.responses[f"{REPO_API}/git/trees/aaa?recursive=1"] = HttpResult(
+        response=fake_response(200, json_data={"tree": [
+            {"path": "Atto00123456/ddlpres/old.akn.xml", "type": "blob"},
+        ]}),
+        err=None,
+    )
+
     # Risposta per il download raw di un file XML
     # I path nel tree sono relativi alla directory Leg19
     fixture_xml = FIXTURE_DIR / "sample.akn.xml"
@@ -39,6 +54,50 @@ def _make_fake_client(tree_items: list[dict]) -> FakeHttpClient:
     )
 
     return client
+
+
+# ---------------------------------------------------------------------------
+# Test funzioni pure
+# ---------------------------------------------------------------------------
+
+
+class TestHelpers:
+    def test_all_tipologie(self) -> None:
+        tipi = _all_tipologie()
+        assert "ddlpres" in tipi
+        assert "emend" in tipi
+        assert "resaula" in tipi
+        assert len(tipi) == 7
+
+    def test_raw_root_default(self) -> None:
+        assert raw_root() == (
+            "https://raw.githubusercontent.com/SenatoDellaRepubblica/"
+            "AkomaNtosoBulkData/master/Leg19"
+        )
+
+    def test_raw_root_custom(self) -> None:
+        assert "Leg18" in raw_root("Leg18")
+
+    def test_extract_tipologia_ddlpres(self) -> None:
+        assert _extract_tipologia("Atto00055177/ddlpres/file.xml") == "ddlpres"
+
+    def test_extract_tipologia_emend(self) -> None:
+        assert _extract_tipologia("Atto00055177/emend/file.xml") == "emend"
+
+    def test_extract_tipologia_unknown(self) -> None:
+        assert _extract_tipologia("Atto00055177/unknown/file.xml") == ""
+
+    def test_default_out_path_ddlpres(self) -> None:
+        assert _default_out_path("Leg19", ["ddlpres"]) == "leg19_ddlpres_v0.csv"
+
+    def test_default_out_path_multiple(self) -> None:
+        assert _default_out_path("Leg19", ["ddlmess", "ddlcomm"]) == "leg19_ddlcomm_ddlmess_v0.csv"
+
+    def test_default_out_path_all(self) -> None:
+        assert _default_out_path("Leg19", _all_tipologie()) == "leg19_all_v0.csv"
+
+    def test_default_out_path_other_legislatura(self) -> None:
+        assert _default_out_path("Leg18", ["ddlpres"]) == "leg18_ddlpres_v0.csv"
 
 
 class TestDiscoverFiles:
@@ -73,6 +132,40 @@ class TestDiscoverFiles:
         client = _make_fake_client(tree_items)
         files = discover_files(client)
         assert files == []
+
+    def test_multiple_tipologie(self) -> None:
+        tree_items = [
+            {"path": "Atto00055177/ddlpres/a.akn.xml", "type": "blob"},
+            {"path": "Atto00055177/emend/b.akn.xml", "type": "blob"},
+            {"path": "Atto00055177/resaula/c.akn.xml", "type": "blob"},
+        ]
+        client = _make_fake_client(tree_items)
+        files = discover_files(client, tipologie=["ddlpres", "emend"])
+        assert files == [
+            "Atto00055177/ddlpres/a.akn.xml",
+            "Atto00055177/emend/b.akn.xml",
+        ]
+        assert "resaula" not in " ".join(files)
+
+    def test_all_tipologie(self) -> None:
+        tree_items = [
+            {"path": "Atto00055177/ddlpres/a.akn.xml", "type": "blob"},
+            {"path": "Atto00055177/emend/b.akn.xml", "type": "blob"},
+        ]
+        client = _make_fake_client(tree_items)
+        files = discover_files(client, tipologie=["all"])
+        assert len(files) == 2
+        assert all(f.endswith(".akn.xml") for f in files)
+
+    def test_altra_legislatura(self) -> None:
+        tree_items = [
+            {"path": "Atto00123456/ddlpres/old.akn.xml", "type": "blob"},
+        ]
+        client = _make_fake_client(tree_items)
+        files = discover_files(client, legislatura="Leg13")
+        # Il mock per Leg13 è configurato in _make_fake_client
+        assert len(files) == 1
+        assert "old.akn.xml" in files[0]
 
 
 class TestFetchAndParse:
