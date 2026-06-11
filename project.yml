@@ -1,7 +1,7 @@
 project:
   slug: senato-akn
   title: Senato Akoma Ntoso
-  status: public-exploration
+  status: active
   kind: corpus-project
 
 source:
@@ -13,15 +13,33 @@ source:
 
 scope:
   legislature: Leg19
-  document_type: ddlpres
-  record_unit: document
+  document_types:
+    - ddlpres        # disegni di legge presentati ✅
+    - ddlmess        # messaggi Camera-Senato ✅
+    - ddlcomm        # relazioni commissione ✅
+    - emend          # emendamenti Aula (parser da estendere)
+    - emendc         # emendamenti Commissione (parser da estendere)
+    - resaula        # resoconti Aula (parser da estendere)
+    - sommcomm       # resoconti Commissione (parser da estendere)
   public_stage: public
 
 outputs:
   derived: data/derived/
+  csv_pattern: "{legislatura}_{tipologie}_v0.csv"
+
+infrastructure:
+  ci:
+    - test: PR + push (smoke extract + pytest)
+    - build-daily: schedule 02:00 UTC (ddlpres)
+    - build-weekly: schedule domenica 04:00 UTC (full Leg19)
+  schedule:
+    daily: ddlpres (~2 min)
+    weekly: full Leg19 (~3 ore)
+  artifacts:
+    retention: 30-60 giorni
 
 decisions:
   toolkit: no
   dataset_incubator: no
   public_discussion: yes
-  next_step: validate finding via public discussion, evaluate expansion to emend or multi-leg
+  next_step: estendere parser per emendamenti (an:amendment) e resoconti (an:debate)

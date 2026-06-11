@@ -1,8 +1,10 @@
-# Dati raw/interim (non committati)
+# Dati raw/interim/derived (non committati)
 data/raw/*
 data/interim/*
+data/derived/*
 !data/raw/.gitkeep
 !data/interim/.gitkeep
+!data/derived/.gitkeep
 
 # Python
 __pycache__/

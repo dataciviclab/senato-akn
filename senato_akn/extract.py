@@ -2,6 +2,9 @@
 
 Orchestrazione: scopre i file via GitHub API, li scarica,
 li pars con ``parser.parse_xml`` e produce CSV.
+
+Tipologie supportate: ddlpres, emend, emendc, resaula, sommcomm, ddlmess, ddlcomm.
+Legislature supportate: Leg13..Leg19 (disponibili nell'upstream).
 """
 from __future__ import annotations
 
@@ -17,41 +20,75 @@ from senato_akn.parser import parse_xml
 
 logger = logging.getLogger("senato_akn.extract")
 
-RAW_ROOT = "https://raw.githubusercontent.com/SenatoDellaRepubblica/AkomaNtosoBulkData/master/Leg19"
 REPO_API_ROOT = "https://api.github.com/repos/SenatoDellaRepubblica/AkomaNtosoBulkData"
+RAW_CONTENT_ROOT = "https://raw.githubusercontent.com/SenatoDellaRepubblica/AkomaNtosoBulkData/master"
+DEFAULT_TIPOLOGIE = ["ddlpres"]
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _all_tipologie() -> list[str]:
+    return ["ddlpres", "emend", "emendc", "resaula", "sommcomm", "ddlmess", "ddlcomm"]
+
+
+def raw_root(legislatura: str = "Leg19") -> str:
+    """URL base per download raw dei file di una legislatura."""
+    return f"{RAW_CONTENT_ROOT}/{legislatura}"
+
+
+def _dir_sha(client: HttpClient, path: str) -> str:
+    """Trova lo SHA di una directory nel root del repo Senato."""
+    r = client.get(f"{REPO_API_ROOT}/contents?ref=master")
+    if not r.is_ok:
+        raise RuntimeError(f"GitHub API error: {r.err}")
+    for item in r.response.json():
+        if item["path"] == path and item["type"] == "dir":
+            return item["sha"]
+    raise RuntimeError(f"Directory '{path}' not found in repo root")
+
 
 # ---------------------------------------------------------------------------
 # GitHub API: discovery dei file XML
 # ---------------------------------------------------------------------------
 
 
-def discover_files(client: HttpClient) -> list[str]:
-    """Scopre i file ``.akn.xml`` in ``Leg19/*/ddlpres/`` via GitHub API.
+def discover_files(
+    client: HttpClient,
+    tipologie: list[str] | None = None,
+    legislatura: str = "Leg19",
+) -> list[str]:
+    """Scopre i file ``.akn.xml`` in ``<legislatura>/*/<tipologia>/`` via GitHub API.
 
     Args:
         client: Istanza di ``HttpClient`` (reale o fake).
+        tipologie: Lista di tipologie da includere (default ``["ddlpres"]``).
+                   Usa ``["all"]`` per tutte le tipologie.
+        legislatura: Nome della directory legislatura (default ``Leg19``).
 
     Returns:
         Lista ordinata di path relativi (es. ``Atto00055177/ddlpres/...``).
     """
-    # 1. Trova la directory Leg19 nel root del repo
-    r = client.get(f"{REPO_API_ROOT}/contents?ref=master")
-    if not r.is_ok:
-        raise RuntimeError(f"GitHub API error: {r.err}")
-    repo_root = r.response.json()
-    leg19 = next(item for item in repo_root if item["name"] == "Leg19")
-    sha = leg19["sha"]
+    if tipologie is None:
+        tipologie = DEFAULT_TIPOLOGIE
+    if tipologie == ["all"]:
+        tipologie = _all_tipologie()
 
-    # 2. Elenca ricorsivamente il contenuto di Leg19
+    # 1. Trova SHA della directory legislatura
+    sha = _dir_sha(client, legislatura)
+
+    # 2. Tree ricorsivo
     r = client.get(f"{REPO_API_ROOT}/git/trees/{sha}?recursive=1")
     if not r.is_ok:
         raise RuntimeError(f"GitHub API tree error: {r.err}")
     tree = r.response.json()["tree"]
 
+    # 3. Filtra per tipologia
+    patterns = tuple(f"/{t}/" for t in tipologie)
     return sorted(
-        item["path"]
-        for item in tree
-        if item["path"].endswith(".akn.xml") and "/ddlpres/" in item["path"]
+        item["path"] for item in tree
+        if item["path"].endswith(".akn.xml") and any(p in item["path"] for p in patterns)
     )
 
 
@@ -60,21 +97,51 @@ def discover_files(client: HttpClient) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def fetch_and_parse(client: HttpClient, path: str) -> dict[str, Any]:
+def fetch_and_parse(client: HttpClient, path: str, legislatura: str = "Leg19") -> dict[str, Any]:
     """Scarica e pars un file XML Akoma Ntoso.
 
     Args:
         client: HttpClient per il download.
         path: Path relativo del file (es. ``Atto00055177/ddlpres/...``).
+        legislatura: Legislatura di appartenenza (per costruire URL raw).
 
     Returns:
         Dict con tutti i campi estratti da ``parse_xml``.
     """
-    url = f"{RAW_ROOT}/{path}"
+    url = f"{raw_root(legislatura)}/{path}"
     r = client.get(url)
     if not r.is_ok:
         raise RuntimeError(f"Download error {url}: {r.err}")
     return parse_xml(r.response.text, path=path)
+
+
+def _extract_tipologia(path: str) -> str:
+    """Estrae la tipologia dal path (es. ``.../ddlpres/...`` → ``ddlpres``)."""
+    parts = path.split("/")
+    for i, p in enumerate(parts):
+        if p in _all_tipologie():
+            return p
+    return ""
+
+
+# ---------------------------------------------------------------------------
+# Nome file output automatico
+# ---------------------------------------------------------------------------
+
+
+def _default_out_path(legislatura: str, tipologie: list[str]) -> str:
+    """Genera un nome file CSV in base a legislatura e tipologie.
+
+    Mantiene backward compat: Leg19/ddlpres → leg19_ddlpres_v0.csv (minuscolo).
+    """
+    leg = legislatura.lower()
+    if tipologie == _all_tipologie():
+        tipi = "all"
+    elif tipologie == ["ddlpres"]:
+        tipi = "ddlpres"  # backward compat
+    else:
+        tipi = "_".join(sorted(tipologie))
+    return f"{leg}_{tipi}_v0.csv"
 
 
 # ---------------------------------------------------------------------------
@@ -90,32 +157,42 @@ def run_extract(
     drop_zero_text: bool = False,
     sleep_ms: int = 0,
     legislatura: str = "Leg19",
+    tipologie: list[str] | None = None,
 ) -> str:
     """Estrae il corpus e scrive il CSV.
 
     Args:
         client: HttpClient per API GitHub e download.
-        out: Path del CSV output. Se ``None``, default ``data/derived/leg19_ddlpres_v0.csv``.
+        out: Path del CSV output. Se ``None``, generato automaticamente.
         limit: Se > 0, processa solo i primi *limit* file.
         drop_zero_text: Se True, rimuove i record con ``text_len == 0``.
         sleep_ms: Pausa tra download (ms).
-        legislatura: Etichetta legislatura (default Leg19).
+        legislatura: Directory legislatura (default Leg19).
+        tipologie: Tipologie da includere (default ["ddlpres"]).
 
     Returns:
         Path del CSV scritto (come stringa).
     """
-    root = Path(__file__).resolve().parents[1]
-    out_path = Path(out) if out else root / "data" / "derived" / "leg19_ddlpres_v0.csv"
+    if tipologie is None:
+        tipologie = DEFAULT_TIPOLOGIE
 
-    files = discover_files(client)
+    root = Path(__file__).resolve().parents[1]
+    if out is None:
+        out_name = _default_out_path(legislatura, tipologie)
+        out_path = root / "data" / "derived" / out_name
+    else:
+        out_path = Path(out)
+
+    files = discover_files(client, tipologie=tipologie, legislatura=legislatura)
     if limit > 0:
         files = files[:limit]
 
     total = len(files)
     rows: list[dict[str, Any]] = []
     for idx, path in enumerate(files, start=1):
-        row = fetch_and_parse(client, path)
+        row = fetch_and_parse(client, path, legislatura=legislatura)
         row["legislatura"] = legislatura
+        row["tipologia"] = _extract_tipologia(path)
         rows.append(row)
         if sleep_ms > 0:
             time.sleep(sleep_ms / 1000.0)

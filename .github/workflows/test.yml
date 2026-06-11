@@ -33,5 +33,5 @@ jobs:
 
       - name: CI smoke (extract 2 files + summarize)
         run: |
-          python3 scripts/extract_leg19_ddlpres.py --limit 2 --out /tmp/senato-ci-test.csv
+          python3 scripts/extract.py --limit 2 --out /tmp/senato-ci-test.csv
           python3 scripts/build_summaries.py --input /tmp/senato-ci-test.csv
