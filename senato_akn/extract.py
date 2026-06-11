@@ -44,7 +44,9 @@ def _dir_sha(client: HttpClient, path: str) -> str:
     if not r.is_ok:
         raise RuntimeError(f"GitHub API error: {r.err}")
     for item in r.response.json():
-        if item["path"] == path and item["type"] == "dir":
+        key = "path" if "path" in item else "name"
+        item_type = item.get("type", "dir")  # default dir se non specificato (mock)
+        if item.get(key) == path and item_type in ("dir", "tree"):
             return item["sha"]
     raise RuntimeError(f"Directory '{path}' not found in repo root")
 
