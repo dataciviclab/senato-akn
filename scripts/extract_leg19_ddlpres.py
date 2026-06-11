@@ -5,19 +5,18 @@ Usage:
     python3 scripts/extract_leg19_ddlpres.py
     python3 scripts/extract_leg19_ddlpres.py --out path.csv --limit 10 --drop-zero-text
 
-Delega a ``scripts/extract.py --legislatura Leg19 --tipologie ddlpres``.
+Delega a ``run_extract`` con parametri default.
 """
 from __future__ import annotations
 
 import argparse
 import logging
-import subprocess
-import sys
-from pathlib import Path
+
+from lab_connectors.http import HttpClient
+
+from senato_akn.extract import run_extract
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-
-SCRIPT = Path(__file__).resolve().parent / "extract.py"
 
 
 def main() -> int:
@@ -26,19 +25,19 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--drop-zero-text", action="store_true")
     parser.add_argument("--sleep-ms", type=int, default=0)
-    args, _ = parser.parse_known_args()
+    args = parser.parse_args()
 
-    cmd = [sys.executable, str(SCRIPT), "--legislatura", "Leg19", "--tipologie", "ddlpres"]
-    if args.out:
-        cmd += ["--out", args.out]
-    if args.limit:
-        cmd += ["--limit", str(args.limit)]
-    if args.drop_zero_text:
-        cmd += ["--drop-zero-text"]
-    if args.sleep_ms:
-        cmd += ["--sleep-ms", str(args.sleep_ms)]
-
-    return subprocess.call(cmd)
+    with HttpClient(timeout=120) as client:
+        run_extract(
+            client,
+            out=args.out or None,
+            limit=args.limit,
+            drop_zero_text=args.drop_zero_text,
+            sleep_ms=args.sleep_ms,
+            legislatura="Leg19",
+            tipologie=["ddlpres"],
+        )
+    return 0
 
 
 if __name__ == "__main__":
