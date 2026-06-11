@@ -24,11 +24,12 @@ jobs:
             --legislatura Leg19 \
             --tipologie all \
             --drop-zero-text \
-            --sleep-ms 100
+            --sleep-ms 100 \
+            --out data/derived/leg19_all_v0.csv
 
       - name: Generate summaries
         run: |
-          python3 scripts/build_summaries.py
+          python3 scripts/build_summaries.py --input data/derived/leg19_all_v0.csv
 
       - name: Upload full corpus as artifact
         uses: actions/upload-artifact@v4

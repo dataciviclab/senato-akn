@@ -35,11 +35,12 @@ jobs:
           python3 scripts/extract.py \
             --legislatura "$LEGISLATURA" \
             --tipologie "$TIPOLOGIE" \
-            --drop-zero-text
+            --drop-zero-text \
+            --out data/derived/leg19_dispatch_v0.csv
 
       - name: Generate summaries
         run: |
-          python3 scripts/build_summaries.py
+          python3 scripts/build_summaries.py --input data/derived/leg19_dispatch_v0.csv
 
       - name: Upload derived data as artifact
         uses: actions/upload-artifact@v4
