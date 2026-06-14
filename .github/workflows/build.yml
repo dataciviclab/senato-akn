@@ -18,8 +18,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6.0.3
+      - uses: actions/setup-python@v6.2.0
         with:
           python-version: "3.12"
 
@@ -43,7 +43,7 @@ jobs:
           python3 scripts/build_summaries.py --input data/derived/leg19_dispatch_v0.csv
 
       - name: Upload derived data as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: senato-corpus
           path: data/derived/
