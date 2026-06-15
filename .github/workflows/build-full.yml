@@ -1,12 +1,9 @@
-name: build-weekly
+name: build-full
 on:
-  schedule:
-    # Weekly: tutte le tipologie Leg19 (full corpus, ~3 ore)
-    - cron: "0 4 * * 0"    # ogni domenica alle 04:00 UTC
   workflow_dispatch:
 
 jobs:
-  build-weekly:
+  build-full:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.3
@@ -18,18 +15,18 @@ jobs:
         run: |
           pip install -e ".[dev]"
 
-      - name: Extract full Leg19 corpus
+      - name: Extract Leg19 corpus (tipologie con parser)
         run: |
           python3 scripts/extract.py \
             --legislatura Leg19 \
-            --tipologie all \
+            --tipologie ddlpres,emend,ddlmess,ddlcomm \
             --drop-zero-text \
-            --sleep-ms 100 \
-            --out data/derived/leg19_all_v0.csv
+            --sleep-ms 20 \
+            --out data/derived/leg19_full_v0.csv
 
       - name: Generate summaries
         run: |
-          python3 scripts/build_summaries.py --input data/derived/leg19_all_v0.csv
+          python3 scripts/build_summaries.py --input data/derived/leg19_full_v0.csv
 
       - name: Upload full corpus as artifact
         uses: actions/upload-artifact@v7.0.1

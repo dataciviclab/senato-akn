@@ -10,9 +10,9 @@ Questo progetto estrae ed esplora il corpus legislativo del Senato della Repubbl
 |---|---|
 | **Fonte** | [SenatoDellaRepubblica/AkomaNtosoBulkData](https://github.com/SenatoDellaRepubblica/AkomaNtosoBulkData) |
 | **Legislatura** | Leg19 (2022-oggi) |
-| **Documenti estratti** | `ddlpres` ✅ (1.095), `ddlmess` ✅ (214), `ddlcomm` ✅ (162) |
-| **In attesa di parsing** | `emend` (18.563), `emendc` (43.229), `resaula` (501), `sommcomm` (4.353) |
-| **Totale Leg19** | 68.117 file XML, ~786 MB |
+| **Documenti estratti** | `ddlpres` ✅ (1.095), `emend` ✅ (18.563), `ddlmess` ✅ (214), `ddlcomm` ✅ (162) |
+| **In attesa di parsing** | `emendc` (43.185), `resaula` (504), `sommcomm` (4.391) |
+| **Totale Leg19** | 68.114 file XML, ~786 MB |
 | **Stato progetto** | Attivo — perimetro in espansione |
 
 ## Finding principale
@@ -50,8 +50,8 @@ data/derived/    # CSV generati dall'estrazione (non in git, vedi CI)
 notes/           # Finding, domande, stato
 .github/workflows/
 ├── test.yml           # Test + smoke su PR/push
-├── build.yml          # Daily: estrazione ddlpres
-└── build-weekly.yml   # Weekly: full Leg19 corpus
+├── build.yml          # On demand: estrazione ddlpres (o tipologia a scelta)
+└── build-full.yml     # On demand: full corpus (ddlpres, emend, ddlmess, ddlcomm)
 ```
 
 ## Come eseguire
@@ -66,8 +66,8 @@ python3 scripts/extract.py
 # 3. Altre tipologie
 python3 scripts/extract.py --tipologie ddlmess,ddlcomm
 
-# 4. Tutto Leg19
-python3 scripts/extract.py --tipologie all --drop-zero-text
+# 4. Tipologie specifiche con parser
+python3 scripts/extract.py --tipologie ddlpres,emend,ddlmess,ddlcomm --drop-zero-text --sleep-ms 20
 
 # 5. Altre legislature
 python3 scripts/extract.py --legislatura Leg18 --tipologie ddlpres
@@ -80,21 +80,20 @@ L'estrazione scarica i file XML via GitHub API e li parserizza in CSV.
 Con `--drop-zero-text` si filtrano i record con testo vuoto (atti multi-file).
 Con `--limit N` si processano solo i primi N file (utile per test).
 
-## CI / Schedule
+## CI
 
 | Trigger | Cosa fa | Quando |
 |---|---|---|
-| **Schedule daily** (02:00 UTC) | Estrae `ddlpres` | Ogni notte |
-| **Schedule weekly** (dom 04:00 UTC) | Estrae full Leg19 | Domenica |
+| **workflow_dispatch (build)** | Estrae ddlpres (o tipologia a scelta) | On demand |
+| **workflow_dispatch (build-full)** | Estrae full corpus (ddlpres, emend, ddlmess, ddlcomm) | On demand |
 | **PR / push** | Test + smoke (2 file) | Su codice |
-| **workflow_dispatch** | Estrazione manuale | Quando serve |
 
 I CSV derivati sono disponibili come **GitHub Artifact** (build → download, non in git).
 
 ## Prossimi passi
 
-1. **Estendere il parser** per `<an:amendment>` (emendamenti) e `<an:debate>` (resoconti)
-2. **Estrarre emendamenti Aula** (18k file) — cuore politico dell'iter legislativo
+1. **Estendere il parser** per `<an:debate>` (resoconti) ed `emendc` (emendamenti Commissione)
+2. **Estrazione incrementale** via commit API GitHub (aggiornare solo i delta senza riscaricare tutto)
 3. **Incrociare con italia-corpus**: ciò che viene proposto (Senato) vs ciò che diventa legge
 
 ## Partecipa

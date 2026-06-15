@@ -1,8 +1,5 @@
 name: build
 on:
-  schedule:
-    # Daily: ddlpres (disegni di legge presentati) — piccolo, veloce
-    - cron: "0 2 * * *"     # ogni giorno alle 02:00 UTC
   workflow_dispatch:
     inputs:
       tipologie:
