@@ -26,7 +26,7 @@ _RULES: list[tuple[str, str]] = [
     ("misure urgenti", "decreto_like"),
     # -- Ratifiche internazionali
     ("ratifica", "ratifica"),
-    ("esecuzione del", "ratifica"),             # "esecuzione del trattato/accordo"
+    ("esecuzione del", "ratifica"),             # "esecuzione del trattato/protocollo/accordo"
     # -- Delega al governo
     ("delega al governo", "delega"),
     ("deleghe al governo", "delega"),
@@ -61,7 +61,6 @@ _RULES: list[tuple[str, str]] = [
     # -- Proroghe
     ("proroga", "proroga"),
     ("differimento", "proroga"),
-    ("termine", "proroga"),                     # "termine... prorogato"
     ("riapertura dei termini", "proroga"),
     # -- Misure e disposizioni generali
     ("norme in materia", "norme_generali"),

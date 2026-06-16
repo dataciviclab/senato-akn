@@ -17,7 +17,7 @@ def _row(doc_title: str, text_len: int = 1000, articles_count: int = 5, work_dat
 class TestFamiliesSummary:
     def test_empty_corpus(self) -> None:
         result = families_summary([])
-        assert len(result) == 6  # tutte le famiglie, zerate
+        assert len(result) == 11  # tutte le famiglie (11), zerate
         for r in result:
             assert r["rows"] == 0
             assert r["text_total"] == 0
@@ -34,7 +34,7 @@ class TestFamiliesSummary:
 
     def test_unclassified_row(self) -> None:
         """Titolo che non matcha nessuna famiglia non deve alterare i totali."""
-        rows = [_row("Disposizioni in materia di istruzione", text_len=500, articles_count=2)]
+        rows = [_row("Riconoscimento dei teatri storici delle Marche", text_len=500, articles_count=2)]
         result = families_summary(rows)
         for r in result:
             assert r["rows"] == 0
