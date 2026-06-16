@@ -34,8 +34,8 @@ class TestClassify:
         assert classify("Delega al Governo in materia di lavoro") == ["delega", "lavoro"]
 
     def test_no_match(self) -> None:
-        """Titolo che non matcha nessuna regola."""
-        assert classify("Disposizioni in materia di istruzione") == []
+        """Titolo che non matcha nessuna regola (atto molto specifico)."""
+        assert classify("Riconoscimento dei teatri storici delle Marche") == []
 
     def test_empty_title(self) -> None:
         assert classify("") == []

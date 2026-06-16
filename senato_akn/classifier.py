@@ -2,22 +2,84 @@
 
 Logica pura: prende un titolo, restituisce una lista di famiglie.
 Nessun I/O, nessuna dipendenza esterna.
+
+Le regole sono ordinate per specificità: le keyword più specifiche prima,
+in modo che match più precisi abbiano priorità su quelli generici.
+Un documento può avere più famiglie (es. "delega al governo per il lavoro").
 """
 from __future__ import annotations
 
-# Regole di classificazione: (keyword, label)
-# Una lista di keyword *ordinali* — la prima match viene assegnata.
-# Se servono match multipli (un documento può stare in più famiglie),
-# si possono ripetere label diverse.
+# Regole: (keyword, label) ordinate per specificità decrescente.
+# Vengono valutate tutte: un documento può stare in più famiglie.
+# Usa dict.fromkeys per deduplicare preservando l'ordine.
 _RULES: list[tuple[str, str]] = [
+    # -- Bilancio (pochi atti, molto specifici)
     ("bilancio di previsione", "bilancio"),
-    ("rendiconto", "bilancio"),
+    ("rendiconto generale", "bilancio"),
+    ("assestamento del bilancio", "bilancio"),
+    # -- Decreto-legge e urgenza
     ("decreto-legge", "decreto_like"),
+    ("decretolegge", "decreto_like"),          # senza trattino nei titoli reali
     ("conversione in legge", "decreto_like"),
+    ("conversione del decreto", "decreto_like"),
+    ("disposizioni urgenti", "decreto_like"),   # strettamente collegato
+    ("misure urgenti", "decreto_like"),
+    # -- Ratifiche internazionali
     ("ratifica", "ratifica"),
-    ("delega", "delega"),
+    ("esecuzione del", "ratifica"),             # "esecuzione del trattato/accordo"
+    # -- Delega al governo
+    ("delega al governo", "delega"),
+    ("deleghe al governo", "delega"),
+    ("delega", "delega"),                       # catch generico
+    # -- Codici e testi unici
+    ("codice penale", "codice"),
+    ("codice della strada", "codice"),
+    ("codice civile", "codice"),
+    ("codice del processo", "codice"),
+    ("codice dei contratti", "codice"),
+    ("codice dell'amministrazione", "codice"),
+    ("codice", "codice"),                       # altri codici
+    ("testo unico", "codice"),
+    # -- Istituzioni e organi
     ("istituzione", "istituzione"),
+    ("costituzione della", "istituzione"),      # "costituzione della commissione..."
+    # -- Lavoro
     ("lavoro", "lavoro"),
+    ("occupazione", "lavoro"),
+    ("lavoratori", "lavoro"),
+    ("previdenza", "lavoro"),                   # previdenza sociale
+    # -- Modifiche a leggi esistenti
+    ("modifiche alla legge", "modifica"),
+    ("modifiche al decreto", "modifica"),
+    ("modifica all'articolo", "modifica"),
+    ("modifiche all'articolo", "modifica"),
+    ("modificazioni alla", "modifica"),
+    ("modifica della legge", "modifica"),
+    ("modifiche della legge", "modifica"),
+    ("abrogazione", "modifica"),
+    ("sostituzione", "modifica"),
+    # -- Proroghe
+    ("proroga", "proroga"),
+    ("differimento", "proroga"),
+    ("termine", "proroga"),                     # "termine... prorogato"
+    ("riapertura dei termini", "proroga"),
+    # -- Misure e disposizioni generali
+    ("norme in materia", "norme_generali"),
+    ("norme per", "norme_generali"),
+    ("norme concernenti", "norme_generali"),
+    ("disciplina", "norme_generali"),
+    ("riordino", "norme_generali"),
+    ("riorganizzazione", "norme_generali"),
+    ("riforma", "norme_generali"),
+    ("semplificazione", "norme_generali"),
+    ("coordinamento", "norme_generali"),
+    ("disposizioni in materia", "norme_generali"),
+    ("disposizioni per", "norme_generali"),
+    ("misure", "norme_generali"),
+    # -- Interpretazione autentica
+    ("interpretazione autentica", "chiarimento"),
+    ("interpretazione", "chiarimento"),
+    ("disposizioni interpretative", "chiarimento"),
 ]
 
 
@@ -31,5 +93,6 @@ def classify(title: str) -> list[str]:
         Lista di label di famiglia (può essere vuota se nessuna regola matcha).
     """
     t = title.lower()
-    # dict.fromkeys preserva ordine e deduplica
-    return list(dict.fromkeys(label for keyword, label in _RULES if keyword in t))
+    return list(dict.fromkeys(
+        label for keyword, label in _RULES if keyword in t
+    ))
