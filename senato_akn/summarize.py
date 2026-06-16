@@ -13,6 +13,7 @@ from typing import Any
 from senato_akn.classifier import classify
 
 # Label di famiglia nell'ordine di output desiderato
+# Allineato a senato_akn.classifier (11 famiglie)
 FAMILY_LABELS = [
     "decreto_like",
     "bilancio",
@@ -20,6 +21,11 @@ FAMILY_LABELS = [
     "istituzione",
     "ratifica",
     "lavoro",
+    "norme_generali",
+    "modifica",
+    "codice",
+    "proroga",
+    "chiarimento",
 ]
 
 
