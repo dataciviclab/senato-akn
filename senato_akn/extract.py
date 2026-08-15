@@ -1,7 +1,8 @@
 """Estrazione del corpus Akoma Ntoso dal repository GitHub del Senato.
 
 Orchestrazione: scopre i file via GitHub API, li scarica,
-li pars con ``parser.parse_xml`` e produce CSV.
+li pars con ``parser.parse_xml`` e produce parquet (o CSV se il path
+output termina in ``.csv``, per backward compat).
 
 Tipologie supportate: ddlpres, emend, emendc, resaula, sommcomm, ddlmess, ddlcomm.
 Legislature supportate: Leg13..Leg19 (disponibili nell'upstream).
@@ -14,8 +15,12 @@ import time
 from pathlib import Path
 from typing import Any
 
+import pyarrow as pa
+import pyarrow.parquet as pq
+
 from lab_connectors.http import HttpClient
 
+from senato_akn.classifier import classify
 from senato_akn.parser import parse_xml
 
 logger = logging.getLogger("senato_akn.extract")
@@ -126,15 +131,55 @@ def _extract_tipologia(path: str) -> str:
     return ""
 
 
+def _document_famiglie(row: dict[str, Any]) -> str:
+    """Famiglie legislative del documento, da ``doc_title``/``short_title``.
+
+    Il classifier può assegnare più famiglie a un documento: vengono
+    serializzate in una stringa ``;``-separata, leggibile dal layer tabellare.
+    """
+    title = row.get("doc_title") or row.get("short_title") or ""
+    return ";".join(classify(title))
+
+
+# ---------------------------------------------------------------------------
+# I/O parquet
+# ---------------------------------------------------------------------------
+
+
+def write_output(rows: list[dict[str, Any]], out_path: Path) -> Path:
+    """Scrive le righe in parquet (default) o CSV (se path termina in ``.csv``).
+
+    Args:
+        rows: Righe del corpus (dicts).
+        out_path: Path di output. L'estensione determina il formato.
+
+    Returns:
+        Path del file scritto.
+    """
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if out_path.suffix == ".csv":
+        with out_path.open("w", newline="", encoding="utf-8") as handle:
+            if rows:
+                writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
+                writer.writeheader()
+                writer.writerows(rows)
+        return out_path
+
+    table = pa.Table.from_pylist(rows) if rows else pa.table({})
+    pq.write_table(table, out_path, compression="zstd")
+    return out_path
+
+
 # ---------------------------------------------------------------------------
 # Nome file output automatico
 # ---------------------------------------------------------------------------
 
 
 def _default_out_path(legislatura: str, tipologie: list[str]) -> str:
-    """Genera un nome file CSV in base a legislatura e tipologie.
+    """Genera un nome file parquet in base a legislatura e tipologie.
 
-    Mantiene backward compat: Leg19/ddlpres → leg19_ddlpres_v0.csv (minuscolo).
+    Backward compat: Leg19/ddlpres → leg19_ddlpres_v0.parquet (il suffisso
+    ``.csv`` resta gestito da ``write_output`` per chi passa un path esplicito).
     """
     leg = legislatura.lower()
     if tipologie == _all_tipologie():
@@ -143,7 +188,7 @@ def _default_out_path(legislatura: str, tipologie: list[str]) -> str:
         tipi = "ddlpres"  # backward compat
     else:
         tipi = "_".join(sorted(tipologie))
-    return f"{leg}_{tipi}_v0.csv"
+    return f"{leg}_{tipi}_v0.parquet"
 
 
 # ---------------------------------------------------------------------------
@@ -161,11 +206,11 @@ def run_extract(
     legislatura: str = "Leg19",
     tipologie: list[str] | None = None,
 ) -> str:
-    """Estrae il corpus e scrive il CSV.
+    """Estrae il corpus e scrive parquet (o CSV se ``out`` finisce in ``.csv``).
 
     Args:
         client: HttpClient per API GitHub e download.
-        out: Path del CSV output. Se ``None``, generato automaticamente.
+        out: Path di output. Se ``None``, generato automaticamente (parquet).
         limit: Se > 0, processa solo i primi *limit* file.
         drop_zero_text: Se True, rimuove i record con ``text_len == 0``.
         sleep_ms: Pausa tra download (ms).
@@ -173,7 +218,7 @@ def run_extract(
         tipologie: Tipologie da includere (default ["ddlpres"]).
 
     Returns:
-        Path del CSV scritto (come stringa).
+        Path del file scritto (come stringa).
     """
     if tipologie is None:
         tipologie = DEFAULT_TIPOLOGIE
@@ -195,6 +240,7 @@ def run_extract(
         row = fetch_and_parse(client, path, legislatura=legislatura)
         row["legislatura"] = legislatura
         row["tipologia"] = _extract_tipologia(path)
+        row["famiglia"] = _document_famiglie(row)
         rows.append(row)
         if sleep_ms > 0:
             time.sleep(sleep_ms / 1000.0)
@@ -205,12 +251,7 @@ def run_extract(
     if drop_zero_text:
         rows = [r for r in rows if int(r["text_len"]) > 0]
 
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with out_path.open("w", newline="", encoding="utf-8") as handle:
-        if rows:
-            writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
-            writer.writeheader()
-            writer.writerows(rows)
+    write_output(rows, out_path)
 
     logger.info("wrote %d rows to %s", len(rows), out_path)
     print(f"wrote {len(rows)} rows to {out_path}")

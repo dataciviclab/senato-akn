@@ -33,11 +33,11 @@ jobs:
             --legislatura "$LEGISLATURA" \
             --tipologie "$TIPOLOGIE" \
             --drop-zero-text \
-            --out data/derived/leg19_dispatch_v0.csv
+            --out data/derived/leg19_dispatch_v0.parquet
 
       - name: Generate summaries
         run: |
-          python3 scripts/build_summaries.py --input data/derived/leg19_dispatch_v0.csv
+          python3 scripts/build_summaries.py --input data/derived/leg19_dispatch_v0.parquet
 
       - name: Upload derived data as artifact
         uses: actions/upload-artifact@v7.0.1

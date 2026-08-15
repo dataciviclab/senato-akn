@@ -45,16 +45,16 @@ In alcuni mesi, i decreti superano il 60% del testo totale pur essendo meno del 
 
 ### 1. Via GitHub Artifact
 
-I CSV derivati sono disponibili come GitHub Artifact del workflow `build`
+I parquet derivati sono disponibili come GitHub Artifact del workflow `build`
 (→ Actions → download). Non sono in git.
 
-### 2. Via SQL su CSV
+### 2. Via SQL su parquet
 
 ```python
 import duckdb
 duckdb.sql("""
-    SELECT famiglia, COUNT(*) AS n_atti, SUM(peso_testo) AS volume
-    FROM read_csv('data/derived/summary.csv')
+    SELECT famiglia, COUNT(*) AS n_atti, SUM(text_len) AS volume
+    FROM read_parquet('data/derived/leg19_ddlpres_v0.parquet')
     GROUP BY famiglia
     ORDER BY volume DESC
 """).show()
@@ -84,7 +84,7 @@ python3 scripts/build_summaries.py      # aggregazioni per famiglia e mese
 ```
 scripts/          # extract.py, build_summaries.py, explore_leg19.py
 senato_akn/       # core: extract, parser, classifier, summarize
-data/derived/     # CSV generati (GitHub Artifact)
+data/derived/     # parquet generati (gitignored, GitHub Artifact)
 .github/workflows/# test, build, build-full
 ```
 

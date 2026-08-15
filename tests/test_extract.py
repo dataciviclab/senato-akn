@@ -1,16 +1,19 @@
 """Test per senato_akn.extract — usa FakeHttpClient, nessuna chiamata HTTP reale."""
 from pathlib import Path
 
+import pyarrow.parquet as pq
 from lab_connectors.http.types import HttpResult
 from lab_connectors.testing import FakeHttpClient, fake_response
 
 from senato_akn.extract import (
     _all_tipologie,
     _default_out_path,
+    _document_famiglie,
     _extract_tipologia,
     discover_files,
     fetch_and_parse,
     raw_root,
+    write_output,
 )
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
@@ -88,16 +91,16 @@ class TestHelpers:
         assert _extract_tipologia("Atto00055177/unknown/file.xml") == ""
 
     def test_default_out_path_ddlpres(self) -> None:
-        assert _default_out_path("Leg19", ["ddlpres"]) == "leg19_ddlpres_v0.csv"
+        assert _default_out_path("Leg19", ["ddlpres"]) == "leg19_ddlpres_v0.parquet"
 
     def test_default_out_path_multiple(self) -> None:
-        assert _default_out_path("Leg19", ["ddlmess", "ddlcomm"]) == "leg19_ddlcomm_ddlmess_v0.csv"
+        assert _default_out_path("Leg19", ["ddlmess", "ddlcomm"]) == "leg19_ddlcomm_ddlmess_v0.parquet"
 
     def test_default_out_path_all(self) -> None:
-        assert _default_out_path("Leg19", _all_tipologie()) == "leg19_all_v0.csv"
+        assert _default_out_path("Leg19", _all_tipologie()) == "leg19_all_v0.parquet"
 
     def test_default_out_path_other_legislatura(self) -> None:
-        assert _default_out_path("Leg18", ["ddlpres"]) == "leg18_ddlpres_v0.csv"
+        assert _default_out_path("Leg18", ["ddlpres"]) == "leg18_ddlpres_v0.parquet"
 
 
 class TestDiscoverFiles:
@@ -181,3 +184,54 @@ class TestFetchAndParse:
         assert result["document_id"] == "01360967-ft.akn"
         assert result["legislatura"] == "Leg19"  # valore di default in parse_xml
         assert result["text_len"] > 0
+
+
+class TestFamiglie:
+    def test_classifica_da_doc_title(self) -> None:
+        row = {"doc_title": "Conversione in legge del decreto-legge 4 agosto 2022, n. 115"}
+        assert "decreto_like" in _document_famiglie(row)
+
+    def test_fallback_su_short_title(self) -> None:
+        row = {"doc_title": "", "short_title": "Ratifica ed esecuzione del trattato"}
+        assert "ratifica" in _document_famiglie(row)
+
+    def test_multi_famiglia_separate_da_punto_virgola(self) -> None:
+        row = {"doc_title": "Delega al governo in materia di lavoro"}
+        famiglie = _document_famiglie(row)
+        assert ";" in famiglie
+        assert "delega" in famiglie.split(";")
+
+    def test_senza_titolo_vuoto(self) -> None:
+        assert _document_famiglie({"doc_title": "", "short_title": ""}) == ""
+
+
+class TestWriteOutput:
+    def test_parquet_roundtrip(self, tmp_path: Path) -> None:
+        out = tmp_path / "corpus.parquet"
+        rows = [
+            {
+                "atto_dir": "Atto00055177",
+                "doc_title": "Conversione in legge del decreto-legge 115",
+                "famiglia": "decreto_like",
+                "text_len": 1500,
+                "articles_count": 3,
+            }
+        ]
+        written = write_output(rows, out)
+        assert Path(written).exists()
+        table = pq.read_table(written)
+        assert table.num_rows == 1
+        assert table.column_names == ["atto_dir", "doc_title", "famiglia", "text_len", "articles_count"]
+        assert table.to_pylist()[0]["famiglia"] == "decreto_like"
+
+    def test_parquet_vuoto(self, tmp_path: Path) -> None:
+        out = tmp_path / "empty.parquet"
+        written = write_output([], out)
+        assert pq.read_table(written).num_rows == 0
+
+    def test_csv_backward_compat(self, tmp_path: Path) -> None:
+        out = tmp_path / "corpus.csv"
+        rows = [{"doc_title": "x", "famiglia": "decreto_like", "text_len": 1}]
+        written = write_output(rows, out)
+        assert written.read_text().startswith("doc_title,famiglia,text_len")
+        assert "decreto_like" in written.read_text()
