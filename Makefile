@@ -24,9 +24,12 @@ extract:
 extract-incremental:
 	$(PYTHON) scripts/extract.py --drop-zero-text --workers 8 --cache --incremental
 
+# Full: le tipologie con parser (incl. emendc; resaula/sommcomm fuori finché
+# non c'è il parser an:debate)
 .PHONY: extract-full
 extract-full:
-	$(PYTHON) scripts/extract.py --tipologie all --drop-zero-text --workers 8 --cache
+	$(PYTHON) scripts/extract.py --tipologie ddlpres,emend,emendc,ddlmess,ddlcomm \
+		--drop-zero-text --workers 8 --cache
 
 .PHONY: summarize
 summarize:

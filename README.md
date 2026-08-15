@@ -13,8 +13,8 @@ struttura e contenuto dei testi.
 |---|---|
 | **Fonte** | SenatoDellaRepubblica/AkomaNtosoBulkData |
 | **Legislatura** | Leg19 (2022-oggi) |
-| **Documenti estratti** | ddlpres (1.095) · emend (18.563) · ddlmess (214) · ddlcomm (162) |
-| **In attesa di parsing** | emendc (43.185) · resaula (504) · sommcomm (4.391) |
+| **Documenti estratti** | ddlpres (1.095) · emend (18.563) · emendc (43.046) · ddlmess (214) · ddlcomm (162) |
+| **In attesa di parsing** | resaula (510) · sommcomm (4.512) |
 | **Totale Leg19** | 68.114 file XML, ~786 MB |
 
 ## Finding principale
@@ -75,8 +75,8 @@ python3 scripts/build_summaries.py      # aggregazioni per famiglia e mese
 
 ## Prossimi passi
 
-1. Estendere il parser a `<an:debate>` (resoconti) ed `emendc`
-2. Estrazione incrementale via commit API GitHub
+1. Estendere il parser a `<an:debate>` (resoconti: resaula, sommcomm)
+2. Estrazione incrementale via commit API GitHub (già coperto dal diff via blob sha)
 3. Incrocio con italia-corpus: proposto (Senato) vs legge (vigente)
 
 ## Architettura
