@@ -44,6 +44,8 @@ def main() -> int:
     parser.add_argument("--workers", type=int, default=1, help="Worker paralleli per il download (default 1)")
     parser.add_argument("--cache", action="store_true",
                         help="Cache locale degli XML in data/raw/<legislatura> (i run successivi scaricano solo i nuovi)")
+    parser.add_argument("--incremental", action="store_true",
+                        help="Delta: usa lo snapshot precedente (parquet + manifest accanto a --out) e processa solo i file cambiati")
     args = parser.parse_args()
 
     # Parsing tipologie
@@ -53,6 +55,17 @@ def main() -> int:
         tipologie = None  # default in run_extract
 
     cache_dir = f"data/raw/{args.legislatura}" if args.cache else None
+
+    # Manifest accanto all'output (stato path→sha per il diff incrementale)
+    from pathlib import Path as _Path
+    out_path = _Path(args.out) if args.out else None
+    if out_path is None:
+        from senato_akn.extract import _default_out_path
+        auto = _default_out_path(args.legislatura, tipologie or ["ddlpres"])
+        out_path = _Path("data/derived") / auto
+    manifest_path = out_path.with_suffix(out_path.suffix + ".manifest.json")
+
+    existing_parquet = out_path if (args.incremental and out_path.exists()) else None
 
     with HttpClient(timeout=120) as client:
         run_extract(
@@ -65,6 +78,8 @@ def main() -> int:
             tipologie=tipologie,
             workers=args.workers,
             cache_dir=cache_dir,
+            manifest_path=manifest_path,
+            existing_parquet=existing_parquet,
         )
     return 0
 

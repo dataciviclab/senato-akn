@@ -19,6 +19,11 @@ install: $(VENV)
 extract:
 	$(PYTHON) scripts/extract.py --drop-zero-text --workers 8 --cache
 
+# Delta: processa solo i file cambiati (manifest + snapshot accanto a --out)
+.PHONY: extract-incremental
+extract-incremental:
+	$(PYTHON) scripts/extract.py --drop-zero-text --workers 8 --cache --incremental
+
 .PHONY: extract-full
 extract-full:
 	$(PYTHON) scripts/extract.py --tipologie all --drop-zero-text --workers 8 --cache
