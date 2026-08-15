@@ -13,13 +13,15 @@ install: $(VENV)
 
 # --- Estrazione ---
 
+# Default: download parallelo + cache XML locale (i run successivi scaricano
+# solo i file nuovi — discovery via tree API + diff)
 .PHONY: extract
 extract:
-	$(PYTHON) scripts/extract.py --drop-zero-text
+	$(PYTHON) scripts/extract.py --drop-zero-text --workers 8 --cache
 
 .PHONY: extract-full
 extract-full:
-	$(PYTHON) scripts/extract.py --tipologie all --drop-zero-text --sleep-ms 100
+	$(PYTHON) scripts/extract.py --tipologie all --drop-zero-text --workers 8 --cache
 
 .PHONY: summarize
 summarize:

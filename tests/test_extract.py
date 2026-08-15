@@ -12,6 +12,7 @@ from senato_akn.extract import (
     _extract_tipologia,
     discover_files,
     fetch_and_parse,
+    fetch_content,
     raw_root,
     write_output,
 )
@@ -184,6 +185,42 @@ class TestFetchAndParse:
         assert result["document_id"] == "01360967-ft.akn"
         assert result["legislatura"] == "Leg19"  # valore di default in parse_xml
         assert result["text_len"] > 0
+
+
+class TestFetchContentCache:
+    PATH = "Atto00055177/ddlpres/01360967-ft.akn.xml"
+
+    def test_scarica_e_scrive_cache(self, tmp_path: Path) -> None:
+        client = _make_fake_client([{"path": self.PATH, "type": "blob"}])
+        cache_dir = tmp_path / "cache"
+        content = fetch_content(client, self.PATH, cache_dir=cache_dir)
+        assert b"akomaNtoso" in content
+        cached = cache_dir / "Leg19" / self.PATH
+        assert cached.exists()
+        assert cached.read_bytes() == content
+
+    def test_cache_hit_non_riusa_la_rete(self, tmp_path: Path) -> None:
+        client = _make_fake_client([{"path": self.PATH, "type": "blob"}])
+        cache_dir = tmp_path / "cache"
+        cached = cache_dir / "Leg19" / self.PATH
+        cached.parent.mkdir(parents=True, exist_ok=True)
+        cached.write_bytes(b"<cached/>")
+
+        content = fetch_content(client, self.PATH, cache_dir=cache_dir)
+        assert content == b"<cached/>"
+
+        # Rimuove la risposta fake: un cache-hit non deve fare nessuna richiesta
+        client.responses.pop(
+            "https://raw.githubusercontent.com/SenatoDellaRepubblica/"
+            "AkomaNtosoBulkData/master/Leg19/Atto00055177/ddlpres/01360967-ft.akn.xml"
+        )
+        again = fetch_content(client, self.PATH, cache_dir=cache_dir)
+        assert again == b"<cached/>"
+
+    def test_senza_cache_scarica_sempre(self, tmp_path: Path) -> None:
+        client = _make_fake_client([{"path": self.PATH, "type": "blob"}])
+        content = fetch_content(client, self.PATH)  # cache_dir=None
+        assert b"akomaNtoso" in content
 
 
 class TestFamiglie:

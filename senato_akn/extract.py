@@ -103,6 +103,49 @@ def discover_files(
 # Download e parsing di un singolo file
 # ---------------------------------------------------------------------------
 
+def _cached_path(cache_dir: Path | None, legislatura: str, path: str) -> Path | None:
+    """Path della cache locale per un file XML, o None se la cache è disattivata."""
+    if cache_dir is None:
+        return None
+    return Path(cache_dir) / legislatura / path
+
+
+def fetch_content(
+    client: HttpClient,
+    path: str,
+    legislatura: str = "Leg19",
+    *,
+    cache_dir: Path | None = None,
+) -> bytes:
+    """Scarica un file XML (o lo legge dalla cache locale se già presente).
+
+    La cache è una copia byte-per-byte dell'XML upstream sotto
+    ``<cache_dir>/<legislatura>/<path>``: consente di riprocessare il corpus
+    (parsing ~1 ms/file) senza rifare il download (~600 ms/file).
+
+    Args:
+        client: HttpClient per il download.
+        path: Path relativo del file (es. ``Atto00055177/ddlpres/...``).
+        legislatura: Directory legislatura (default Leg19).
+        cache_dir: Directory radice della cache; None = nessuna cache.
+
+    Returns:
+        Contenuto XML (bytes).
+    """
+    cached = _cached_path(cache_dir, legislatura, path)
+    if cached is not None and cached.exists():
+        return cached.read_bytes()
+
+    url = f"{raw_root(legislatura)}/{path}"
+    r = client.get(url)
+    if not r.is_ok:
+        raise RuntimeError(f"Download error {url}: {r.err}")
+
+    if cached is not None:
+        cached.parent.mkdir(parents=True, exist_ok=True)
+        cached.write_bytes(r.response.content)
+    return r.response.content
+
 
 def fetch_and_parse(client: HttpClient, path: str, legislatura: str = "Leg19") -> dict[str, Any]:
     """Scarica e pars un file XML Akoma Ntoso.
@@ -115,11 +158,15 @@ def fetch_and_parse(client: HttpClient, path: str, legislatura: str = "Leg19") -
     Returns:
         Dict con tutti i campi estratti da ``parse_xml``.
     """
-    url = f"{raw_root(legislatura)}/{path}"
-    r = client.get(url)
-    if not r.is_ok:
-        raise RuntimeError(f"Download error {url}: {r.err}")
-    return parse_xml(r.response.text, path=path)
+    return parse_xml(fetch_content(client, path, legislatura).decode("utf-8", errors="replace"), path=path)
+
+
+def _enrich_row(row: dict[str, Any], path: str, legislatura: str) -> dict[str, Any]:
+    """Aggiunge i campi derivati (legislatura, tipologia, famiglia) a una riga."""
+    row["legislatura"] = legislatura
+    row["tipologia"] = _extract_tipologia(path)
+    row["famiglia"] = _document_famiglie(row)
+    return row
 
 
 def _extract_tipologia(path: str) -> str:
@@ -205,17 +252,27 @@ def run_extract(
     sleep_ms: int = 0,
     legislatura: str = "Leg19",
     tipologie: list[str] | None = None,
+    workers: int = 1,
+    cache_dir: str | Path | None = None,
 ) -> str:
     """Estrae il corpus e scrive parquet (o CSV se ``out`` finisce in ``.csv``).
+
+    Ottimizzazioni (il collo è il download, ~600 ms/file; il parsing ~1 ms):
+    - ``workers > 1``: download in parallelo (client HTTP per worker).
+    - ``cache_dir``: cache locale degli XML; i run successivi riusano i file
+      già scaricati (discovery via tree API + diff = incrementale senza
+      commit API).
 
     Args:
         client: HttpClient per API GitHub e download.
         out: Path di output. Se ``None``, generato automaticamente (parquet).
         limit: Se > 0, processa solo i primi *limit* file.
         drop_zero_text: Se True, rimuove i record con ``text_len == 0``.
-        sleep_ms: Pausa tra download (ms).
+        sleep_ms: Pausa tra download (ms) — solo nel percorso sequenziale.
         legislatura: Directory legislatura (default Leg19).
         tipologie: Tipologie da includere (default ["ddlpres"]).
+        workers: Numero di worker paralleli per il download (default 1).
+        cache_dir: Directory radice della cache XML; None = nessuna cache.
 
     Returns:
         Path del file scritto (come stringa).
@@ -235,18 +292,30 @@ def run_extract(
         files = files[:limit]
 
     total = len(files)
-    rows: list[dict[str, Any]] = []
-    for idx, path in enumerate(files, start=1):
-        row = fetch_and_parse(client, path, legislatura=legislatura)
-        row["legislatura"] = legislatura
-        row["tipologia"] = _extract_tipologia(path)
-        row["famiglia"] = _document_famiglie(row)
-        rows.append(row)
-        if sleep_ms > 0:
-            time.sleep(sleep_ms / 1000.0)
-        if idx % 100 == 0:
-            logger.info("parsed %d/%d", idx, total)
-            print(f"parsed {idx}/{total}")
+
+    def _process(c: HttpClient, path: str) -> dict[str, Any]:
+        content = fetch_content(c, path, legislatura, cache_dir=cache_dir)
+        row = parse_xml(content.decode("utf-8", errors="replace"), path=path)
+        return _enrich_row(row, path, legislatura)
+
+    if workers > 1:
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _worker(path: str) -> dict[str, Any]:
+            with HttpClient(timeout=120) as c:
+                return _process(c, path)
+
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            rows = list(executor.map(_worker, files))
+    else:
+        rows = []
+        for idx, path in enumerate(files, start=1):
+            rows.append(_process(client, path))
+            if sleep_ms > 0:
+                time.sleep(sleep_ms / 1000.0)
+            if idx % 100 == 0:
+                logger.info("parsed %d/%d", idx, total)
+                print(f"parsed {idx}/{total}")
 
     if drop_zero_text:
         rows = [r for r in rows if int(r["text_len"]) > 0]

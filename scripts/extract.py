@@ -40,7 +40,10 @@ def main() -> int:
     parser.add_argument("--out", default="", help="Path CSV output (default: auto)")
     parser.add_argument("--limit", type=int, default=0, help="Max file da processare")
     parser.add_argument("--drop-zero-text", action="store_true", help="Filtra record con text_len==0")
-    parser.add_argument("--sleep-ms", type=int, default=0, help="Pausa tra download (ms)")
+    parser.add_argument("--sleep-ms", type=int, default=0, help="Pausa tra download (ms, solo sequenziale)")
+    parser.add_argument("--workers", type=int, default=1, help="Worker paralleli per il download (default 1)")
+    parser.add_argument("--cache", action="store_true",
+                        help="Cache locale degli XML in data/raw/<legislatura> (i run successivi scaricano solo i nuovi)")
     args = parser.parse_args()
 
     # Parsing tipologie
@@ -48,6 +51,8 @@ def main() -> int:
         tipologie = _all_tipologie() if args.tipologie == "all" else [t.strip() for t in args.tipologie.split(",")]
     else:
         tipologie = None  # default in run_extract
+
+    cache_dir = f"data/raw/{args.legislatura}" if args.cache else None
 
     with HttpClient(timeout=120) as client:
         run_extract(
@@ -58,6 +63,8 @@ def main() -> int:
             sleep_ms=args.sleep_ms,
             legislatura=args.legislatura,
             tipologie=tipologie,
+            workers=args.workers,
+            cache_dir=cache_dir,
         )
     return 0
 
