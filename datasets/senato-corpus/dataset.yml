@@ -1,0 +1,59 @@
+root: "../../out"
+schema_version: 1
+
+dataset:
+  name: "senato_corpus"
+  source_id: "senato_akn"
+  description: "Corpus Akoma Ntoso del Senato (Leg19): ogni documento legislativo (ddlpres, emend, ddlcomm, ddlmess) con famiglia, peso testuale e articoli. Deriva dall'estrazione XML di senato-akn; atto_num collega a senato_ddl via ddl_url (/ddl/N)."
+  tags: [politica, senato, corpus, akoma-ntoso, legislativo]
+  category: politica
+  years: [2026]
+  time_coverage:
+    start_year: 2022
+    end_year: 2026
+
+raw:
+  output_policy: "overwrite"
+  sources:
+    - name: "corpus_parquet"
+      type: "local_file"
+      args:
+        path: "../../data/derived/leg19_ddlpres_v0.parquet"
+        filename: "leg19_ddlpres_v0.parquet"
+      primary: true
+
+clean:
+  sql: "sql/clean.sql"
+  read:
+    source: auto
+    mode: latest
+  required_columns: [atto_num, document_id, doc_title, famiglia, work_date, tipologia, text_len, articles_count]
+  validate:
+    not_null: [atto_num, document_id]
+    # una riga = un documento XML del corpus
+    primary_key: [document_id]
+    min_rows: 1000
+
+mart:
+  tables:
+    # Un foglio per atto (dl_num): la tabella-bridge verso senato_ddl
+    - name: "mart_per_atto"
+      sql: "sql/mart_per_atto.sql"
+    # Distribuzione per famiglia legislativa (finding del progetto)
+    - name: "mart_famiglie"
+      sql: "sql/mart_famiglie.sql"
+  required_tables:
+    - "mart_per_atto"
+    - "mart_famiglie"
+  validate:
+    table_rules:
+      mart_per_atto:
+        required_columns: [atto_num, n_documenti, testo_totale]
+        primary_key: [atto_num]
+        min_rows: 1000
+      mart_famiglie:
+        required_columns: [famiglia, n_documenti, testo_totale, pct_testo]
+        min_rows: 5
+
+validation:
+  fail_on_error: true

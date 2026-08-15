@@ -25,6 +25,16 @@ extract-full:
 summarize:
 	$(PYTHON) scripts/build_summaries.py
 
+# --- Layer toolkit (raw local_file -> clean -> mart) ---
+
+.PHONY: run-senato-corpus
+run-senato-corpus:
+	$(PYTHON) -m toolkit.cli.app run --config datasets/senato-corpus/dataset.yml
+
+.PHONY: check-senato-corpus
+check-senato-corpus:
+	$(PYTHON) -m toolkit.cli.app run preflight --config datasets/senato-corpus/dataset.yml
+
 .PHONY: all
 all: extract summarize
 
