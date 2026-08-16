@@ -18,14 +18,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
-      - uses: actions/setup-python@v6.2.0
-        with:
-          python-version: "3.12"
-
-      - name: Install package and dependencies
-        run: |
-          pip install -e ".[dev]"
+      - uses: actions/checkout@v7
+      - uses: dataciviclab/.github/actions/python-setup@main
 
       - name: Run tests
         run: |
