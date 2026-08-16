@@ -79,10 +79,26 @@ python3 scripts/build_summaries.py      # aggregazioni per famiglia e mese
 - **Hai una domanda sul lavoro del Senato?** Apri una [Discussion](https://github.com/orgs/dataciviclab/discussions/new?category=Domanda)
 - **Vuoi contribuire?** Issues per bug, PR per script e parsing
 
+## Stato
+
+- **Ingest via git** (`git_source`): clone `blob:none` + sparse della
+  legislatura. La GitHub tree API tronca oltre ~100k entry — l'estrazione
+  HTTP scopriva solo ~46% dei file; con git il corpus è completo.
+- **Leg19**: 149.059 file XML (~2,1 GB). Parsate: ddlpres (1.978), emend
+  (44.396), emendc (93.636), ddlmess (435), ddlcomm (273). In attesa del
+  parser `an:debate`: resaula (990), sommcomm (7.351).
+- **Estrazione**: clone ~3,4 min (una tantum), fetch delta ~11 s, parsing
+  da disco ~1 ms/file. Delta incrementale via `--incremental` (manifest
+  path→sha + merge del parquet).
+- **Layer toolkit**: `datasets/senato-corpus` (raw→clean→mart) — il corpus
+  è interrogabile e agganciabile (bridge `atto_num` ↔ `senato_ddl`).
+- Follow-up: workflow `sync`, GCS publish + registry, parser `an:debate`.
+
 ## Prossimi passi
 
 1. Estendere il parser a `<an:debate>` (resoconti: resaula, sommcomm)
-2. Incrocio con italia-corpus: proposto (Senato) vs legge (vigente)
+2. Workflow `sync` incrementale + GCS publish
+3. Incrocio con italia-corpus: proposto (Senato) vs legge (vigente)
 
 ## Architettura
 
