@@ -1,22 +1,20 @@
 # Pipeline — manutenzione del corpus: extract → toolkit → GCS → registry
 #
-# Pattern classico del Lab (RNA/open-politica), adattato all'ingest git:
-#   1. (incremental) restore stato estrazione (parquet + manifest da GCS)
-#   2. estrazione: delta ddlpres (--incremental) oppure full corpus
-#   3. layer toolkit senato_corpus (raw local_file → clean → mart)
-#   4. publish su GCS: clean+mart (canonici) + stato _derived (per il delta
-#      su runner fresco)
-#   5. registry build → draft PR se diff
+# Orchestratore sottile (ADR-001): esegue TUTTI i dataset in datasets/ e
+# sincronizza per directory di output (niente slug hardcodato). Un dataset
+# nuovo entra automaticamente — basta che il suo parquet raw sia prodotto.
+#
+# Flusso:
+#   1. restore stato estrazione (parquet + manifest da GCS, per dataset)
+#   2. estrazione: parquet derivati per i dataset (incrementale)
+#   3. toolkit run su tutti i dataset (raw local_file → clean → mart)
+#   4. sync GCS: clean+mart (canonici) + stato _derived (per il delta)
+#   5. registry → draft PR
 #
 # Trigger:
-#   - schedule mensile → incremental
-#   - pull_request merged su datasets/**.py → incremental (refresh dopo merge)
-#   - workflow_dispatch: mode = incremental (default) | full (corpus completo
-#     parsabile, upload artifact, niente layer/publish)
-#
-# Scope fisso ddlpres/Leg19 per l'incrementale (coincide col layer
-# senato_corpus e coi nomi restore/publish). Altre tipologie → mode full.
-# F1.4 (#12) generalizzerà il layer alle altre tipologie.
+#   - schedule mensile → incremental (tutti i dataset)
+#   - pull_request merged su datasets/**.py → incremental
+#   - workflow_dispatch: mode = incremental | full (artifact corpus completo)
 
 name: pipeline
 on:
@@ -33,7 +31,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "incremental (delta ddlpres + publish) | full (corpus completo, artifact)"
+        description: "incremental (delta + publish) | full (corpus completo, artifact)"
         default: "incremental"
         required: false
 
@@ -44,12 +42,13 @@ concurrency:
 env:
   GCS_CLEAN: gs://dataciviclab-clean
   GCS_MART: gs://dataciviclab-mart
-  SLUG: senato_corpus
   YEAR: "2026"
   LEGISLATURA: Leg19
+  # Parquet derivati per dataset (raw local_file). Un nuovo dataset qui:
+  # parquet + manifest, e il loop extract/sync lo prende.
   FULL_TIPOLOGIE: ddlpres,emend,emendc,ddlmess,ddlcomm
-  OUT: data/derived/leg19_ddlpres_v0.parquet
-  MANIFEST: data/derived/leg19_ddlpres_v0.manifest.json
+  OUT_DDLPRES: data/derived/leg19_ddlpres_v0.parquet
+  OUT_EMEND: data/derived/leg19_emend_emendc_v0.parquet
   FULL_OUT: data/derived/leg19_full_v0.parquet
 
 jobs:
@@ -91,24 +90,37 @@ jobs:
         if: env.MODE == 'incremental' && steps.gcp.outputs.ready == 'true'
         run: |
           mkdir -p data/derived
-          for f in "$(basename ${{ env.OUT }})" "$(basename ${{ env.MANIFEST }})"; do
-            if gsutil -q cp "${{ env.GCS_CLEAN }}/${{ env.SLUG }}/${{ env.YEAR }}/_derived/$f" \
-                "data/derived/$f" 2>/dev/null; then
-              echo "state restored: $f"
-            else
-              echo "state assente (primo run): $f"
-            fi
+          for out in "${{ env.OUT_DDLPRES }}" "${{ env.OUT_EMEND }}"; do
+            f="$(basename "$out")"
+            m="${f%.parquet}.manifest.json"
+            for x in "$f" "$m"; do
+              if gsutil -q cp "${{ env.GCS_CLEAN }}/_derived/$x" "data/derived/$x" 2>/dev/null; then
+                echo "state restored: $x"
+              else
+                echo "state assente (primo run): $x"
+              fi
+            done
           done
 
-      # ── Estrazione ─────────────────────────────────────────────────
-      - name: Extract incremental (ddlpres)
+      # ── Estrazione (incrementale per dataset) ──────────────────────
+      - name: Extract ddlpres
         if: env.MODE == 'incremental'
         run: |
           python3 scripts/extract.py \
             --legislatura "${{ env.LEGISLATURA }}" \
             --tipologie ddlpres \
             --drop-zero-text \
-            --out "${{ env.OUT }}" \
+            --out "${{ env.OUT_DDLPRES }}" \
+            --incremental
+
+      - name: Extract emend+emendc
+        if: env.MODE == 'incremental'
+        run: |
+          python3 scripts/extract.py \
+            --legislatura "${{ env.LEGISLATURA }}" \
+            --tipologie emend,emendc \
+            --drop-zero-text \
+            --out "${{ env.OUT_EMEND }}" \
             --incremental
 
       - name: Extract full corpus (tipologie parsate)
@@ -120,27 +132,39 @@ jobs:
             --drop-zero-text \
             --out "${{ env.FULL_OUT }}"
 
-      # ── Layer toolkit (solo incremental: il layer copre ddlpres) ───
+      # ── Layer toolkit: run su TUTTI i dataset ──────────────────────
       - name: Run toolkit
         if: env.MODE == 'incremental'
         run: |
-          python3 -m toolkit.cli.app run --config datasets/senato-corpus/dataset.yml
+          for cfg in datasets/*/dataset.yml; do
+            echo "=== $cfg ==="
+            python3 -m toolkit.cli.app run --config "$cfg"
+          done
 
-      # ── Publish GCS (solo incremental) ─────────────────────────────
+      # ── Sync GCS: per directory di output (niente slug hardcodato) ─
       - name: Publish clean + mart + state to GCS
         if: env.MODE == 'incremental' && steps.gcp.outputs.ready == 'true'
         run: |
-          gsutil -m rsync -r -x ".*/_(run|validate)/.*|.*/metadata\.json$" \
-            "out/data/clean/${{ env.SLUG }}/${{ env.YEAR }}/" \
-            "${{ env.GCS_CLEAN }}/${{ env.SLUG }}/${{ env.YEAR }}/"
-          gsutil -m rsync -r -x ".*/_(run|validate)/.*|.*/metadata\.json$" \
-            "out/data/mart/${{ env.SLUG }}/${{ env.YEAR }}/" \
-            "${{ env.GCS_MART }}/${{ env.SLUG }}/${{ env.YEAR }}/"
-          gsutil -q cp "${{ env.OUT }}" \
-            "${{ env.GCS_CLEAN }}/${{ env.SLUG }}/${{ env.YEAR }}/_derived/"
-          gsutil -q cp "${{ env.MANIFEST }}" \
-            "${{ env.GCS_CLEAN }}/${{ env.SLUG }}/${{ env.YEAR }}/_derived/"
-          echo "✅ published ${{ env.SLUG }} clean+mart+state"
+          for slug in $(ls out/data/clean/ 2>/dev/null); do
+            gsutil -m rsync -r -x ".*/_(run|validate)/.*|.*/metadata\.json$" \
+              "out/data/clean/$slug/${{ env.YEAR }}/" \
+              "${{ env.GCS_CLEAN }}/$slug/${{ env.YEAR }}/"
+            echo "✅ $slug clean synced"
+          done
+          for slug in $(ls out/data/mart/ 2>/dev/null); do
+            gsutil -m rsync -r -x ".*/_(run|validate)/.*|.*/metadata\.json$" \
+              "out/data/mart/$slug/${{ env.YEAR }}/" \
+              "${{ env.GCS_MART }}/$slug/${{ env.YEAR }}/"
+            echo "✅ $slug mart synced"
+          done
+          # stato di estrazione (parquet+manifest) per il delta su runner fresco
+          for out in "${{ env.OUT_DDLPRES }}" "${{ env.OUT_EMEND }}"; do
+            f="$(basename "$out")"
+            m="${f%.parquet}.manifest.json"
+            gsutil -q cp "data/derived/$f" "${{ env.GCS_CLEAN }}/_derived/$f"
+            [ -f "data/derived/$m" ] && gsutil -q cp "data/derived/$m" "${{ env.GCS_CLEAN }}/_derived/$m"
+          done
+          echo "✅ state published"
 
       # ── Artifact del corpus full (dispatch mode=full) ──────────────
       - name: Upload full corpus artifact
