@@ -60,30 +60,18 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v6.2.0
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          pip install -e ".[dev]"
-          pip install git+https://github.com/dataciviclab/toolkit.git@main
-          pip install duckdb
+      - uses: dataciviclab/.github/actions/python-setup@main
 
       # ── Auth GCP (graceful: se la SA non è configurata, niente GCS) ──
       - name: Auth GCP
         id: gcp
-        if: env.GCP_SA_KEY_SENATO_AKN != ''
-        run: |
-          printf '%s\n' "$GCP_SA_KEY_SENATO_AKN" > /tmp/gcp-key.json
-          gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
-          echo "ready=true" >> "$GITHUB_OUTPUT"
+        uses: dataciviclab/.github/actions/gcs-auth@main
         env:
-          GCP_SA_KEY_SENATO_AKN: ${{ secrets.GCP_SA_KEY_SENATO_AKN }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY_SENATO_AKN }}
 
       # ── Mode: incremental di default (schedule/merge); dispatch può
       #    chiedere full ─────────────────────────────────────────────
@@ -157,51 +145,14 @@ jobs:
       # ── Artifact del corpus full (dispatch mode=full) ──────────────
       - name: Upload full corpus artifact
         if: env.MODE == 'full'
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7
         with:
           name: senato-corpus-full
           path: data/derived/
           retention-days: 60
 
-      # ── Registry (artifact catalogo) ───────────────────────────────
-      - name: Build registry
-        run: python3 -m toolkit.cli.app registry build --write
-
-      - name: Check registry diff
-        id: diff
-        run: |
-          if git status --porcelain -- registry/ | grep -q .; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Create draft registry PR
-        if: steps.diff.outputs.changed == 'true'
-        run: |
-          BRANCH="pipeline-registry/${GITHUB_RUN_ID}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -B "$BRANCH"
-          git add registry/
-          git commit -m "chore(pipeline): aggiorna registry" || exit 0
-          git push --force-with-lease -u origin "$BRANCH"
-          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
-
-      - name: Create/update draft registry PR
-        if: steps.diff.outputs.changed == 'true'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const branch = `pipeline-registry/${context.runId}`;
-            const { repo, owner } = context.repo;
-            const existing = await github.rest.pulls.list({ owner, repo, head: branch, state: 'open' });
-            const params = { owner, repo, title: 'chore(pipeline): aggiorna registry',
-              body: 'Registry artifacts updated after pipeline run.', head: branch, base: 'main' };
-            if (existing.data.length > 0) {
-              await github.rest.pulls.update({ owner, repo, pull_number: existing.data[0].number,
-                title: params.title, body: params.body });
-            } else {
-              params.draft = true;
-              await github.rest.pulls.create(params);
-            }
+      # ── Registry (artifact catalogo) → draft PR (composite, stesso job) ──
+      - name: Registry update PR
+        uses: dataciviclab/.github/actions/registry-update-pr@main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
