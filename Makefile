@@ -39,6 +39,10 @@ summarize:
 run-senato-corpus:
 	$(PYTHON) -m toolkit.cli.app run --config datasets/senato-corpus/dataset.yml
 
+.PHONY: run-senato-emendamenti
+run-senato-emendamenti:
+	$(PYTHON) -m toolkit.cli.app run --config datasets/senato-emendamenti/dataset.yml
+
 .PHONY: check-senato-corpus
 check-senato-corpus:
 	$(PYTHON) -m toolkit.cli.app run preflight --config datasets/senato-corpus/dataset.yml
