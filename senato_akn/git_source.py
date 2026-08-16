@@ -39,6 +39,9 @@ def ensure_repo(repo_dir: str | Path, legislatura: str) -> Path:
     shallow + ``reset --hard`` (con sparse attivo aggiorna solo le path
     sparse, scaricando via pack i blob nuovi).
 
+    Un repo git locale senza remote (es. nei test, o una copia manuale) è
+    usato così com'è: la legislatura deve già essere nel working tree.
+
     Args:
         repo_dir: Directory del clone (creata se assente).
         legislatura: Directory legislatura da materializzare (es. ``Leg19``).
@@ -59,9 +62,19 @@ def ensure_repo(repo_dir: str | Path, legislatura: str) -> Path:
         )
         _run(repo_dir, "sparse-checkout", "set", legislatura)
         _run(repo_dir, "checkout")
-    else:
+        return repo_dir
+
+    has_remote = _run(repo_dir, "remote").stdout.strip() != ""
+    if has_remote:
         _run(repo_dir, "fetch", "--depth", "1", "origin", REPO_BRANCH)
         _run(repo_dir, "reset", "--hard", "FETCH_HEAD")
+        _run(repo_dir, "sparse-checkout", "set", legislatura)
+
+    if not (repo_dir / legislatura).exists():
+        raise FileNotFoundError(
+            f"Legislatura '{legislatura}' non materializzata in {repo_dir}. "
+            "Per un repo locale, clonala/sparse-checkout o usa un clone upstream."
+        )
     return repo_dir
 
 

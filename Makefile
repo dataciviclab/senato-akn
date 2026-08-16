@@ -57,6 +57,16 @@ test: install
 .PHONY: ci
 ci: install
 	$(VENV_PYTHON) -m pytest tests/ -v --tb=short
+	# smoke: mini repo git + extract + summarize (nessuna rete)
+	rm -rf /tmp/senato-smoke
+	mkdir -p /tmp/senato-smoke/Leg19/Atto00055177/ddlpres
+	cp tests/fixtures/sample.akn.xml \
+	   /tmp/senato-smoke/Leg19/Atto00055177/ddlpres/01360967-ft.akn.xml
+	git -C /tmp/senato-smoke init -q
+	git -C /tmp/senato-smoke add -A
+	git -C /tmp/senato-smoke -c user.email=t -c user.name=t commit -qm smoke
+	$(VENV_PYTHON) scripts/extract.py --repo-dir /tmp/senato-smoke \
+	  --limit 1 --out /tmp/senato-ci-test.parquet
 	$(VENV_PYTHON) scripts/build_summaries.py --input /tmp/senato-ci-test.parquet \
 	  --out-families /tmp/senato-ci-families.csv --out-monthly /tmp/senato-ci-monthly.csv
 

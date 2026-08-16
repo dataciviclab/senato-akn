@@ -2,7 +2,7 @@
 import subprocess
 from pathlib import Path
 
-from senato_akn.git_source import list_entries, read_local
+from senato_akn.git_source import ensure_repo, list_entries, read_local
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
 
@@ -58,3 +58,12 @@ class TestReadLocal:
         repo = _make_repo(tmp_path)
         content = read_local(repo, "Leg19/Atto00055177/ddlpres/a.akn.xml")
         assert b"akomaNtoso" in content
+
+
+class TestEnsureRepo:
+    def test_repo_locale_senza_remote(self, tmp_path: Path) -> None:
+        """Un repo git locale (no remote) viene usato così com'è."""
+        repo = _make_repo(tmp_path)
+        result = ensure_repo(repo, "Leg19")
+        assert result == repo
+        assert (repo / "Leg19").exists()
