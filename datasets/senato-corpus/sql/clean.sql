@@ -8,6 +8,14 @@
 --   coincide con l'URI http://dati.senato.it/ddl/N (ddl_url in senato_ddl) —
 --   è la chiave di bridge verso open-politica.
 -- - famiglia è ';'-separata (un documento può stare in più famiglie).
+--
+-- Drop voluto di colonne raw (10), documentato:
+-- - tecniche/morte: path, file_name, raw_url, work_uri, expression_uri,
+--   manifestation_uri (URI e boilerplate dell'estrazione, non analizzabili)
+-- - duplicati: text_preview (prefix di text_integrale), FRBRname
+--   (0/1978 valorizzata su ddlpres)
+-- - mantenute qui (informative, 100% valorizzate): expression_date e
+--   manifestation_date (date FRBR del documento, oltre a work_date)
 
 SELECT
     TRY_CAST(regexp_extract(atto_dir, 'Atto(\d+)', 1) AS BIGINT) AS atto_num,
@@ -19,6 +27,8 @@ SELECT
     normalize_string(short_title)                                 AS short_title,
     normalize_string(famiglia)                                    AS famiglia,
     TRY_CAST(work_date AS DATE)                                   AS work_date,
+    TRY_CAST(expression_date AS DATE)                             AS expression_date,
+    TRY_CAST(manifestation_date AS DATE)                          AS manifestation_date,
     TRY_CAST(articles_count AS BIGINT)                            AS articles_count,
     TRY_CAST(paragraphs_count AS BIGINT)                          AS paragraphs_count,
     TRY_CAST(text_len AS BIGINT)                                  AS text_len,

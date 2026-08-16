@@ -34,7 +34,7 @@ Toolkit:
 - delta incrementale (`--incremental`): manifest path→sha + merge col parquet
   precedente — funziona su runner effimero (lo stato è il manifest, ~94 KB)
 - layer toolkit `senato_corpus`: raw qs=100, clean qs=95, mart qs=100 (2/2),
-  1.891 atti con testo
+  1.889 atti con testo (1.891 totali nel mart_per_atto)
 
 ## Finding
 
