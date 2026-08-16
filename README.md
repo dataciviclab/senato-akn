@@ -62,9 +62,15 @@ duckdb.sql("""
 
 ### 3. Via estrazione locale
 
+La sorgente è un clone git dell'upstream (`git_source`): il primo run clona
+e materializza la legislatura (download via pack, ~2 min), i successivi
+fanno `git fetch` (delta) e parsano da disco (~1 ms/file).
+
 ```bash
 pip install -e ".[dev]"
-python3 scripts/extract.py              # Leg19/ddlpres (1.095 file, ~2 min)
+python3 scripts/extract.py              # Leg19/ddlpres (clone git + parse)
+python3 scripts/extract.py --tipologie ddlpres,emend,emendc,ddlmess,ddlcomm  # full parsabile
+python3 scripts/extract.py --incremental   # delta: solo i file cambiati (manifest + snapshot)
 python3 scripts/build_summaries.py      # aggregazioni per famiglia e mese
 ```
 
@@ -76,15 +82,15 @@ python3 scripts/build_summaries.py      # aggregazioni per famiglia e mese
 ## Prossimi passi
 
 1. Estendere il parser a `<an:debate>` (resoconti: resaula, sommcomm)
-2. Estrazione incrementale via commit API GitHub (già coperto dal diff via blob sha)
-3. Incrocio con italia-corpus: proposto (Senato) vs legge (vigente)
+2. Incrocio con italia-corpus: proposto (Senato) vs legge (vigente)
 
 ## Architettura
 
 ```
-scripts/          # extract.py, build_summaries.py, explore_leg19.py
-senato_akn/       # core: extract, parser, classifier, summarize
-data/derived/     # parquet generati (gitignored, GitHub Artifact)
+scripts/          # extract.py, build_summaries.py
+senato_akn/       # core: extract, git_source, parser, classifier, summarize
+data/raw/akn/     # clone git upstream (gitignored) — il "download" è via pack
+data/derived/     # parquet + manifest generati (gitignored, GitHub Artifact)
 .github/workflows/# test, build, build-full
 ```
 

@@ -11,25 +11,23 @@ $(VENV):
 install: $(VENV)
 	$(VENV_PYTHON) -m pip install -e ".[dev]"
 
-# --- Estrazione ---
+# --- Estrazione (sorgente: clone git upstream, git_source) ---
 
-# Default: download parallelo + cache XML locale (i run successivi scaricano
-# solo i file nuovi — discovery via tree API + diff)
 .PHONY: extract
 extract:
-	$(PYTHON) scripts/extract.py --drop-zero-text --workers 8 --cache
+	$(PYTHON) scripts/extract.py --drop-zero-text
 
 # Delta: processa solo i file cambiati (manifest + snapshot accanto a --out)
 .PHONY: extract-incremental
 extract-incremental:
-	$(PYTHON) scripts/extract.py --drop-zero-text --workers 8 --cache --incremental
+	$(PYTHON) scripts/extract.py --drop-zero-text --incremental
 
 # Full: le tipologie con parser (incl. emendc; resaula/sommcomm fuori finché
 # non c'è il parser an:debate)
 .PHONY: extract-full
 extract-full:
 	$(PYTHON) scripts/extract.py --tipologie ddlpres,emend,emendc,ddlmess,ddlcomm \
-		--drop-zero-text --workers 8 --cache
+		--drop-zero-text
 
 .PHONY: summarize
 summarize:
@@ -59,8 +57,7 @@ test: install
 .PHONY: ci
 ci: install
 	$(VENV_PYTHON) -m pytest tests/ -v --tb=short
-	$(VENV_PYTHON) scripts/extract_leg19_ddlpres.py --limit 2 --out /tmp/senato-ci-test.csv
-	$(VENV_PYTHON) scripts/build_summaries.py --input /tmp/senato-ci-test.csv \
+	$(VENV_PYTHON) scripts/build_summaries.py --input /tmp/senato-ci-test.parquet \
 	  --out-families /tmp/senato-ci-families.csv --out-monthly /tmp/senato-ci-monthly.csv
 
 # --- Pulizia ---

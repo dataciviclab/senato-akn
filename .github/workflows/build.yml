@@ -28,16 +28,20 @@ jobs:
         run: |
           TIPOLOGIE="${{ github.event.inputs.tipologie || 'ddlpres' }}"
           LEGISLATURA="${{ github.event.inputs.legislatura || 'Leg19' }}"
-          echo "Estrazione: $LEGISLATURA / $TIPOLOGIE"
+          LEG_LOWER="$(echo "$LEGISLATURA" | tr '[:upper:]' '[:lower:]')"
+          TIPI="$(echo "$TIPOLOGIE" | tr ',' '_')"
+          OUT="data/derived/${LEG_LOWER}_${TIPI}_v0.parquet"
+          echo "out=$OUT" >> "$GITHUB_ENV"
+          echo "Estrazione: $LEGISLATURA / $TIPOLOGIE → $OUT"
           python3 scripts/extract.py \
             --legislatura "$LEGISLATURA" \
             --tipologie "$TIPOLOGIE" \
             --drop-zero-text \
-            --out data/derived/leg19_dispatch_v0.parquet
+            --out "$OUT"
 
       - name: Generate summaries
         run: |
-          python3 scripts/build_summaries.py --input data/derived/leg19_dispatch_v0.parquet
+          python3 scripts/build_summaries.py --input "$OUT"
 
       - name: Upload derived data as artifact
         uses: actions/upload-artifact@v7.0.1

@@ -21,8 +21,6 @@ jobs:
             --legislatura Leg19 \
             --tipologie ddlpres,emend,emendc,ddlmess,ddlcomm \
             --drop-zero-text \
-            --workers 8 \
-            --cache \
             --out data/derived/leg19_full_v0.parquet
 
       - name: Generate summaries
