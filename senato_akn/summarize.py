@@ -1,7 +1,8 @@
 """Aggregazioni e summary del corpus legislativo.
 
-Legge il CSV derivato, classifica i documenti per famiglia
-con ``classifier.classify`` e produce CSV di riepilogo.
+Legge il corpus derivato (parquet, default) e produce CSV di riepilogo.
+La classificazione per famiglia è calcolata in fase di estrazione
+(``extract.famiglia``, ``;``-separata): qui viene solo riletta.
 """
 from __future__ import annotations
 
@@ -10,7 +11,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from senato_akn.classifier import classify
+import pyarrow.parquet as pq
 
 # Label di famiglia nell'ordine di output desiderato
 # Allineato a senato_akn.classifier (11 famiglie)
@@ -28,19 +29,36 @@ FAMILY_LABELS = [
     "chiarimento",
 ]
 
+# Colonne lette dal corpus: solo quelle usate dai summary
+_CORPUS_COLUMNS = ["doc_title", "short_title", "famiglia", "work_date", "text_len", "articles_count"]
+
 
 def read_corpus(path: str | Path) -> list[dict[str, Any]]:
-    """Legge il CSV derivato del corpus.
+    """Legge il corpus derivato (parquet o CSV in base all'estensione).
+
+    Per parquet legge solo le colonne necessarie ai summary.
 
     Args:
-        path: Path del CSV di input.
+        path: Path del corpus (``.parquet`` default, ``.csv`` supportato).
 
     Returns:
         Lista di righe come dict.
     """
-    csv.field_size_limit(10_000_000)
-    with Path(path).open(encoding="utf-8") as handle:
-        return list(csv.DictReader(handle))
+    path = Path(path)
+    if path.suffix == ".csv":
+        csv.field_size_limit(10_000_000)
+        with path.open(encoding="utf-8") as handle:
+            return list(csv.DictReader(handle))
+    table = pq.read_table(path, columns=_CORPUS_COLUMNS)
+    return table.to_pylist()
+
+
+def _row_famiglie(row: dict[str, Any]) -> list[str]:
+    """Famiglie del documento dalla colonna ``famiglia`` (o via legacy)."""
+    raw = row.get("famiglia") or ""
+    if raw:
+        return [f for f in raw.split(";") if f]
+    return []
 
 
 def families_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -63,8 +81,7 @@ def families_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     }
 
     for row in rows:
-        title = row.get("doc_title") or row.get("short_title") or ""
-        row_families = classify(title)
+        row_families = _row_famiglie(row)
         for label in row_families:
             if label in agg:
                 agg[label]["rows"] += 1
@@ -109,13 +126,12 @@ def monthly_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     month_dec_text: Counter[str] = Counter()
 
     for row in rows:
-        title = row.get("doc_title") or row.get("short_title") or ""
-        row_families = classify(title)
+        row_famiglie = _row_famiglie(row)
         month = row["work_date"][:7]
         text_len = int(row["text_len"])
         month_tot_rows[month] += 1
         month_tot_text[month] += text_len
-        if "decreto_like" in row_families:
+        if "decreto_like" in row_famiglie:
             month_dec_rows[month] += 1
             month_dec_text[month] += text_len
 
@@ -167,7 +183,7 @@ def run_summarize(
     """Esegue le aggregazioni complete e scrive i CSV.
 
     Args:
-        input_path: Path del CSV corpus. Default: ``data/derived/leg19_ddlpres_v0.csv``.
+        input_path: Path del corpus (parquet o CSV). Default: ``data/derived/leg19_ddlpres_v0.parquet``.
         out_families: Path output families. Default: ``data/derived/families_summary.csv``.
         out_monthly: Path output monthly. Default: ``data/derived/decreto_monthly_summary.csv``.
 
@@ -175,7 +191,7 @@ def run_summarize(
         Dict con chiavi ``families`` e ``monthly`` mapping ai path scritti.
     """
     root = Path(__file__).resolve().parents[1]
-    input_path = Path(input_path) if input_path else root / "data" / "derived" / "leg19_ddlpres_v0.csv"
+    input_path = Path(input_path) if input_path else root / "data" / "derived" / "leg19_ddlpres_v0.parquet"
     out_families = Path(out_families) if out_families else root / "data" / "derived" / "families_summary.csv"
     out_monthly = Path(out_monthly) if out_monthly else root / "data" / "derived" / "decreto_monthly_summary.csv"
 

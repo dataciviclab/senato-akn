@@ -11,7 +11,7 @@ license = {text = "MIT"}
 requires-python = ">=3.12"
 authors = [{name = "DataCivicLab"}]
 dependencies = [
-    "lab-connectors @ git+https://github.com/dataciviclab/lab-connectors.git",
+    "pyarrow>=15.0.0",
 ]
 
 [tool.setuptools.packages.find]

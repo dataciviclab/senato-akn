@@ -18,7 +18,7 @@ scope:
     - ddlmess        # messaggi Camera-Senato ✅
     - ddlcomm        # relazioni commissione ✅
     - emend          # emendamenti Aula ✅
-    - emendc         # emendamenti Commissione (parser da estendere)
+    - emendc         # emendamenti Commissione ✅
     - resaula        # resoconti Aula (parser da estendere)
     - sommcomm       # resoconti Commissione (parser da estendere)
   public_stage: public
@@ -40,4 +40,4 @@ decisions:
   toolkit: no
   dataset_incubator: no
   public_discussion: yes
-  next_step: estendere parser per emendc (emendamenti Commissione), resoconti (an:debate)
+  next_step: "estendere parser per i resoconti (an:debate: resaula, sommcomm)"

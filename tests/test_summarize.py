@@ -1,6 +1,7 @@
 """Test per senato_akn.summarize."""
 import pytest
 
+from senato_akn.classifier import classify
 from senato_akn.summarize import families_summary, monthly_summary
 
 
@@ -8,6 +9,7 @@ def _row(doc_title: str, text_len: int = 1000, articles_count: int = 5, work_dat
     return {
         "doc_title": doc_title,
         "short_title": "",
+        "famiglia": ";".join(classify(doc_title)),
         "text_len": str(text_len),
         "articles_count": str(articles_count),
         "work_date": work_date,

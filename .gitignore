@@ -6,6 +6,9 @@ data/derived/*
 !data/interim/.gitkeep
 !data/derived/.gitkeep
 
+# Output toolkit (raw/clean/mart)
+out/
+
 # Python
 __pycache__/
 *.pyc

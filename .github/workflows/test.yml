@@ -31,7 +31,14 @@ jobs:
         run: |
           python3 -m pytest tests/ -v --tb=short
 
-      - name: CI smoke (extract 2 files + summarize)
+      - name: CI smoke (extract da mini repo git + summarize)
         run: |
-          python3 scripts/extract.py --limit 2 --out /tmp/senato-ci-test.csv
-          python3 scripts/build_summaries.py --input /tmp/senato-ci-test.csv
+          mkdir -p /tmp/senato-smoke/Leg19/Atto00055177/ddlpres
+          cp tests/fixtures/sample.akn.xml \
+             /tmp/senato-smoke/Leg19/Atto00055177/ddlpres/01360967-ft.akn.xml
+          git -C /tmp/senato-smoke init -q
+          git -C /tmp/senato-smoke add -A
+          git -C /tmp/senato-smoke -c user.email=t -c user.name=t commit -qm smoke
+          python3 scripts/extract.py --repo-dir /tmp/senato-smoke \
+            --limit 1 --out /tmp/senato-ci-test.parquet
+          python3 scripts/build_summaries.py --input /tmp/senato-ci-test.parquet

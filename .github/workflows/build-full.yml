@@ -19,14 +19,13 @@ jobs:
         run: |
           python3 scripts/extract.py \
             --legislatura Leg19 \
-            --tipologie ddlpres,emend,ddlmess,ddlcomm \
+            --tipologie ddlpres,emend,emendc,ddlmess,ddlcomm \
             --drop-zero-text \
-            --sleep-ms 20 \
-            --out data/derived/leg19_full_v0.csv
+            --out data/derived/leg19_full_v0.parquet
 
       - name: Generate summaries
         run: |
-          python3 scripts/build_summaries.py --input data/derived/leg19_full_v0.csv
+          python3 scripts/build_summaries.py --input data/derived/leg19_full_v0.parquet
 
       - name: Upload full corpus as artifact
         uses: actions/upload-artifact@v7.0.1
