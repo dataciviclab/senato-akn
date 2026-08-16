@@ -18,8 +18,8 @@ from senato_akn.extract import (
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
 
-A_PATH = "Leg19/Atto00055177/ddlpres/01360967-ft.akn.xml"
-B_PATH = "Leg19/Atto00055178/ddlpres/01361136-ft.akn.xml"
+A_PATH = "Atto00055177/ddlpres/01360967-ft.akn.xml"
+B_PATH = "Atto00055178/ddlpres/01361136-ft.akn.xml"
 
 
 def _git(repo: Path, *args: str) -> None:
@@ -37,8 +37,8 @@ def _make_git_repo(tmp_path: Path, *, b_content: str | None = None) -> Path:
     (repo / "Leg19" / "Atto00055178" / "ddlpres").mkdir(parents=True)
     a = FIXTURE_DIR / "sample.akn.xml"
     b = b_content if b_content is not None else a.read_text()
-    (repo / A_PATH).write_text(a.read_text())
-    (repo / B_PATH).write_text(b)
+    (repo / "Leg19" / A_PATH).write_text(a.read_text())
+    (repo / "Leg19" / B_PATH).write_text(b)
     _git(repo, "init", "-q")
     _git(repo, "add", "-A")
     _git(repo, "-c", "user.email=t", "-c", "user.name=t", "commit", "-qm", "seed")
@@ -147,7 +147,7 @@ class TestRunExtract:
         b_new = (FIXTURE_DIR / "sample.akn.xml").read_text().replace(
             "Disposizioni per l'adeguamento", "NUOVO TITOLO DI PROVA"
         )
-        (repo / B_PATH).write_text(b_new)
+        (repo / "Leg19" / B_PATH).write_text(b_new)
         _git(repo, "add", "-A")
         _git(repo, "-c", "user.email=t", "-c", "user.name=t", "commit", "-qm", "change b")
 

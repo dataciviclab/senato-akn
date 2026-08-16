@@ -85,6 +85,10 @@ def list_entries(
 ) -> list[dict[str, str]]:
     """Elenco (path, blob sha) dei file della legislatura, filtrato per tipologia.
 
+    I path sono **relativi alla legislatura** (es. ``Atto00055177/ddlpres/...``),
+    compatibili con ``parser.parse_xml`` (che ne ricava ``atto_dir``/``document_id``)
+    e con gli snapshot precedenti.
+
     La tree API di GitHub tronca oltre ~100k entry: qui si usa
     ``git ls-tree`` locale (completo e autoritativo).
 
@@ -94,21 +98,24 @@ def list_entries(
         tipologie: Tipologie da includere (es. ``["ddlpres"]``).
 
     Returns:
-        Lista ordinata di dict ``{"path", "sha"}``.
+        Lista ordinata di dict ``{"path", "sha"}`` (path relativo alla leg.).
     """
+    prefix = f"{legislatura}/"
     out = _run(repo_dir, "ls-tree", "-r", "-z", "HEAD", "--", legislatura)
     patterns = tuple(f"/{t}/" for t in tipologie)
     entries: list[dict[str, str]] = []
     for line in out.stdout.split("\0"):
         if not line:
             continue
-        meta, path = line.split("\t", 1)
+        meta, full_path = line.split("\t", 1)
         sha = meta.split(" ")[2]
-        if path.endswith(".akn.xml") and any(p in path for p in patterns):
-            entries.append({"path": path, "sha": sha})
+        if not full_path.endswith(".akn.xml") or not full_path.startswith(prefix):
+            continue
+        if any(p in full_path for p in patterns):
+            entries.append({"path": full_path[len(prefix):], "sha": sha})
     return sorted(entries, key=lambda e: e["path"])
 
 
-def read_local(repo_dir: str | Path, path: str) -> bytes:
-    """Legge un file XML dal working tree locale."""
-    return (Path(repo_dir) / path).read_bytes()
+def read_local(repo_dir: str | Path, legislatura: str, path: str) -> bytes:
+    """Legge un file XML dal working tree locale (path relativo alla legislatura)."""
+    return (Path(repo_dir) / legislatura / path).read_bytes()

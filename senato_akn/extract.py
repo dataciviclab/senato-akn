@@ -228,7 +228,7 @@ def run_extract(
 
     def _process(entry: dict[str, str]) -> dict[str, Any]:
         path = entry["path"]
-        content = read_local(repo_dir, path)
+        content = read_local(repo_dir, legislatura, path)
         row = parse_xml(content.decode("utf-8", errors="replace"), path=path)
         return _enrich_row(row, path, legislatura)
 

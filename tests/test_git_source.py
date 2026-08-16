@@ -31,8 +31,8 @@ class TestListEntries:
         repo = _make_repo(tmp_path)
         entries = list_entries(repo, "Leg19", ["ddlpres"])
         assert [e["path"] for e in entries] == [
-            "Leg19/Atto00055177/ddlpres/a.akn.xml",
-            "Leg19/Atto00055177/ddlpres/b.akn.xml",
+            "Atto00055177/ddlpres/a.akn.xml",
+            "Atto00055177/ddlpres/b.akn.xml",
         ]
 
     def test_tipologie_multiple(self, tmp_path: Path) -> None:
@@ -46,7 +46,7 @@ class TestListEntries:
         # lo sha deve essere l'hash del blob git (40 hex)
         assert len(entries[0]["sha"]) == 40
         import hashlib
-        content = (repo / entries[0]["path"]).read_bytes()
+        content = (repo / "Leg19" / entries[0]["path"]).read_bytes()
         h = hashlib.sha1()
         h.update(f"blob {len(content)}\0".encode())
         h.update(content)
@@ -56,7 +56,7 @@ class TestListEntries:
 class TestReadLocal:
     def test_legge_dal_working_tree(self, tmp_path: Path) -> None:
         repo = _make_repo(tmp_path)
-        content = read_local(repo, "Leg19/Atto00055177/ddlpres/a.akn.xml")
+        content = read_local(repo, "Leg19", "Atto00055177/ddlpres/a.akn.xml")
         assert b"akomaNtoso" in content
 
 
