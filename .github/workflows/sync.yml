@@ -20,15 +20,6 @@ on:
     # Mensile, in linea con la convenzione del Lab (open-politica fa lo stesso)
     - cron: "0 6 1 * *"
   workflow_dispatch:
-    inputs:
-      legislatura:
-        description: "Legislatura"
-        default: "Leg19"
-        required: false
-      tipologie:
-        description: "Tipologie (default ddlpres)"
-        default: "ddlpres"
-        required: false
 
 concurrency:
   group: senato-akn-sync
@@ -39,6 +30,13 @@ env:
   GCS_MART: gs://dataciviclab-mart
   SLUG: senato_corpus
   YEAR: "2026"
+  # Scope fisso: ddlpres/Leg19 (coincide col layer senato_corpus e coi nomi
+  # restore/publish). Altre tipologie → workflow `build` (ad-hoc). F1.4 (#12)
+  # generalizzerà il sync alle altre tipologie.
+  LEGISLATURA: Leg19
+  TIPOLOGIE: ddlpres
+  OUT: data/derived/leg19_ddlpres_v0.parquet
+  MANIFEST: data/derived/leg19_ddlpres_v0.manifest.json
 
 jobs:
   sync:
@@ -90,9 +88,10 @@ jobs:
       - name: Extract incremental
         run: |
           python3 scripts/extract.py \
-            --legislatura "${{ inputs.legislatura || 'Leg19' }}" \
-            --tipologie "${{ inputs.tipologie || 'ddlpres' }}" \
+            --legislatura "${{ env.LEGISLATURA }}" \
+            --tipologie "${{ env.TIPOLOGIE }}" \
             --drop-zero-text \
+            --out "${{ env.OUT }}" \
             --incremental
 
       # ── Layer toolkit: raw local_file → clean → mart ──
@@ -110,9 +109,9 @@ jobs:
           gsutil -m rsync -r -x ".*/_(run|validate)/.*|.*/metadata\.json$" \
             "out/data/mart/${{ env.SLUG }}/${{ env.YEAR }}/" \
             "${{ env.GCS_MART }}/${{ env.SLUG }}/${{ env.YEAR }}/"
-          gsutil -q cp data/derived/leg19_ddlpres_v0.parquet \
+          gsutil -q cp "${{ env.OUT }}" \
             "${{ env.GCS_CLEAN }}/${{ env.SLUG }}/${{ env.YEAR }}/_derived/"
-          gsutil -q cp data/derived/leg19_ddlpres_v0.manifest.json \
+          gsutil -q cp "${{ env.MANIFEST }}" \
             "${{ env.GCS_CLEAN }}/${{ env.SLUG }}/${{ env.YEAR }}/_derived/"
           echo "✅ published ${{ env.SLUG }} clean+mart+state"
 
