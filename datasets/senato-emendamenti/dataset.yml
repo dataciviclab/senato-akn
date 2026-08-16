@@ -1,0 +1,54 @@
+# Emendamenti del Senato (XIX leg.) — emend Aula + emendc Commissione
+root: "../../out"
+schema_version: 1
+
+dataset:
+  name: "senato_emendamenti"
+  source_id: "senato_akn"
+  description: "Ogni emendamento presentato nella XIX legislatura (Aula `emend` e Commissione `emendc`), dal corpus Akoma Ntoso. Un documento per riga, con la fase dell'atto a cui si riferisce (S.NNN) — bridge verso senato_ddl."
+  tags: [politica, senato, emendamenti, iter, intensita]
+  category: politica
+  years: [2026]
+  time_coverage:
+    start_year: 2022
+    end_year: 2026
+
+raw:
+  output_policy: "overwrite"
+  sources:
+    - name: "emendamenti_parquet"
+      type: "local_file"
+      args:
+        path: "../../data/derived/leg19_emend_emendc_v0.parquet"
+        filename: "leg19_emend_emendc_v0.parquet"
+      primary: true
+
+clean:
+  sql: "sql/clean.sql"
+  read:
+    source: auto
+    mode: latest
+  required_columns: [fase, emend_id, tipologia, active_ref, text_len]
+  validate:
+    not_null: [fase, emend_id]
+    # una riga = un documento emendamento (path univoco; document_id può
+    # ripetersi perché l'upstream ha lo stesso file in più Atto dir)
+    primary_key: [path]
+    min_rows: 100000
+
+mart:
+  tables:
+    # Intensità emendativa per atto (S.NNN) — bridge verso senato_ddl
+    - name: "mart_emendamenti_per_atto"
+      sql: "sql/mart_per_atto.sql"
+  required_tables:
+    - "mart_emendamenti_per_atto"
+  validate:
+    table_rules:
+      mart_emendamenti_per_atto:
+        required_columns: [fase, n_emend, testo_totale, n_aula, n_commissione]
+        primary_key: [fase]
+        min_rows: 100
+
+validation:
+  fail_on_error: true
