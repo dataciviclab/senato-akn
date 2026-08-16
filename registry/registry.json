@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "repo": "senato-akn",
+  "source_repo": "dataciviclab/senato-akn",
+  "updated_at": "2026-08-16",
+  "datasets": [
+    {
+      "slug": "senato_corpus",
+      "name": "Senato Corpus",
+      "description": "Corpus Akoma Ntoso del Senato (Leg19): ogni documento legislativo (ddlpres, emend, ddlcomm, ddlmess) con famiglia, peso testuale e articoli. Deriva dall'estrazione XML di senato-akn; atto_num collega a senato_ddl via ddl_url (/ddl/N).",
+      "source": "",
+      "source_id": "senato_akn",
+      "period": {
+        "start": 2022,
+        "end": 2026
+      },
+      "tags": [
+        "politica",
+        "senato",
+        "corpus",
+        "akoma-ntoso",
+        "legislativo"
+      ],
+      "category": "politica",
+      "columns": [
+        {
+          "name": "atto_num",
+          "type": "BIGINT",
+          "role": "metric",
+          "description": "Numero dell'atto nella directory AttoNNNNN: coincide con /ddl/N (ddl_url in senato_ddl) — chiave del bridge verso open-politica",
+          "semantic_type": "ddl_id"
+        },
+        {
+          "name": "legislatura",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "tipologia",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "doc_type",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "document_id",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "doc_title",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "short_title",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "famiglia",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "work_date",
+          "type": "DATE",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "expression_date",
+          "type": "DATE",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "manifestation_date",
+          "type": "DATE",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "articles_count",
+          "type": "BIGINT",
+          "role": "metric",
+          "description": ""
+        },
+        {
+          "name": "paragraphs_count",
+          "type": "BIGINT",
+          "role": "metric",
+          "description": ""
+        },
+        {
+          "name": "text_len",
+          "type": "BIGINT",
+          "role": "metric",
+          "description": ""
+        },
+        {
+          "name": "frbr_subtype",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "frbr_number",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "active_ref",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "text_integrale",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        }
+      ],
+      "location": {
+        "type": "gcs",
+        "path": "gs://dataciviclab-clean/senato_corpus/2026/senato_corpus_2026_clean.parquet",
+        "multi_file": false
+      },
+      "stage": "incubating",
+      "mart_refs": [
+        "senato_corpus__mart_per_atto",
+        "senato_corpus__mart_famiglie"
+      ]
+    }
+  ],
+  "marts": [
+    {
+      "slug": "senato_corpus__mart_famiglie",
+      "dataset": "senato_corpus",
+      "table": "mart_famiglie",
+      "location": {
+        "type": "gcs",
+        "path": "gs://dataciviclab-mart/senato_corpus/2026/mart_famiglie.parquet",
+        "multi_file": false
+      }
+    },
+    {
+      "slug": "senato_corpus__mart_per_atto",
+      "dataset": "senato_corpus",
+      "table": "mart_per_atto",
+      "location": {
+        "type": "gcs",
+        "path": "gs://dataciviclab-mart/senato_corpus/2026/mart_per_atto.parquet",
+        "multi_file": false
+      }
+    }
+  ],
+  "signals": [
+    {
+      "id": "senato_corpus",
+      "source_id": "senato_akn",
+      "status": "ok",
+      "label": "senato_corpus",
+      "detail": "anno 2026 — mart: si",
+      "action": "",
+      "run": {
+        "run_id": "20260816T095736Z_72ecaf97",
+        "year": 2026,
+        "status": "SUCCESS",
+        "quality_score": {
+          "raw": 100,
+          "clean": 95,
+          "mart": 100
+        },
+        "output_rows": {
+          "clean": 1891,
+          "mart": 1900
+        },
+        "output_bytes": {
+          "raw": 6495810,
+          "clean": 5552462,
+          "mart": 15368
+        },
+        "started_at": "2026-08-16T09:57:36.285387+00:00",
+        "finished_at": "2026-08-16T09:57:37.503651+00:00",
+        "duration_seconds": 1.218
+      }
+    }
+  ],
+  "codelists": [],
+  "entities": {
+    "entities": {
+      "Atto legislativo": {
+        "entity": "Atto legislativo",
+        "label": "Atto legislativo / Disegno di legge",
+        "datasets": [
+          {
+            "slug": "senato_corpus",
+            "name": "Senato Corpus",
+            "column": "atto_num",
+            "semantic_type": "ddl_id"
+          }
+        ],
+        "types": {
+          "ddl_id": 1
+        }
+      }
+    },
+    "bridges": []
+  }
+}

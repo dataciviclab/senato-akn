@@ -53,12 +53,15 @@ def main() -> int:
     else:
         tipologie = None  # default in run_extract
 
-    # Manifest accanto all'output (stato path→sha per il diff incrementale)
+    # Manifest accanto all'output (stato path→sha per il diff incrementale).
+    # NB: `.with_suffix(".manifest.json")` (NON `.with_suffix(suffix+".manifest.json")`)
+    # → `leg19_ddlpres_v0.parquet` + `.manifest.json` = `leg19_ddlpres_v0.manifest.json`.
+    # Il nome deve coincidere con quello del workflow `sync` (restore/publish su GCS).
     out_path = Path(args.out) if args.out else None
     if out_path is None:
         auto = _default_out_path(args.legislatura, tipologie or ["ddlpres"])
         out_path = Path("data/derived") / auto
-    manifest_path = out_path.with_suffix(out_path.suffix + ".manifest.json")
+    manifest_path = out_path.with_suffix(".manifest.json")
 
     existing_parquet = out_path if (args.incremental and out_path.exists()) else None
 

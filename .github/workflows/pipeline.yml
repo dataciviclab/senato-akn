@@ -1,0 +1,207 @@
+# Pipeline — manutenzione del corpus: extract → toolkit → GCS → registry
+#
+# Pattern classico del Lab (RNA/open-politica), adattato all'ingest git:
+#   1. (incremental) restore stato estrazione (parquet + manifest da GCS)
+#   2. estrazione: delta ddlpres (--incremental) oppure full corpus
+#   3. layer toolkit senato_corpus (raw local_file → clean → mart)
+#   4. publish su GCS: clean+mart (canonici) + stato _derived (per il delta
+#      su runner fresco)
+#   5. registry build → draft PR se diff
+#
+# Trigger:
+#   - schedule mensile → incremental
+#   - pull_request merged su datasets/**.py → incremental (refresh dopo merge)
+#   - workflow_dispatch: mode = incremental (default) | full (corpus completo
+#     parsabile, upload artifact, niente layer/publish)
+#
+# Scope fisso ddlpres/Leg19 per l'incrementale (coincide col layer
+# senato_corpus e coi nomi restore/publish). Altre tipologie → mode full.
+# F1.4 (#12) generalizzerà il layer alle altre tipologie.
+
+name: pipeline
+on:
+  pull_request:
+    types: [closed]
+    paths:
+      - "datasets/**"
+      - "**.py"
+      - "Makefile"
+      - "pyproject.toml"
+      - "requirements.txt"
+  schedule:
+    - cron: "0 6 1 * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "incremental (delta ddlpres + publish) | full (corpus completo, artifact)"
+        default: "incremental"
+        required: false
+
+concurrency:
+  group: senato-akn-pipeline
+  cancel-in-progress: false
+
+env:
+  GCS_CLEAN: gs://dataciviclab-clean
+  GCS_MART: gs://dataciviclab-mart
+  SLUG: senato_corpus
+  YEAR: "2026"
+  LEGISLATURA: Leg19
+  FULL_TIPOLOGIE: ddlpres,emend,emendc,ddlmess,ddlcomm
+  OUT: data/derived/leg19_ddlpres_v0.parquet
+  MANIFEST: data/derived/leg19_ddlpres_v0.manifest.json
+  FULL_OUT: data/derived/leg19_full_v0.parquet
+
+jobs:
+  pipeline:
+    if: github.event.pull_request.merged == true || github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6.0.3
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+          pip install git+https://github.com/dataciviclab/toolkit.git@main
+          pip install duckdb
+
+      # ── Auth GCP (graceful: se la SA non è configurata, niente GCS) ──
+      - name: Auth GCP
+        id: gcp
+        if: env.GCP_SA_KEY_SENATO_AKN != ''
+        run: |
+          printf '%s\n' "$GCP_SA_KEY_SENATO_AKN" > /tmp/gcp-key.json
+          gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+        env:
+          GCP_SA_KEY_SENATO_AKN: ${{ secrets.GCP_SA_KEY_SENATO_AKN }}
+
+      # ── Mode: incremental di default (schedule/merge); dispatch può
+      #    chiedere full ─────────────────────────────────────────────
+      - name: Resolve mode
+        id: mode
+        run: |
+          MODE="incremental"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            MODE="${{ inputs.mode || 'incremental' }}"
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "MODE=$MODE" >> "$GITHUB_ENV"
+          echo "Mode: $MODE"
+
+      # ── Restore stato estrazione (solo incremental) ────────────────
+      - name: Restore extraction state from GCS
+        if: env.MODE == 'incremental' && steps.gcp.outputs.ready == 'true'
+        run: |
+          mkdir -p data/derived
+          for f in "$(basename ${{ env.OUT }})" "$(basename ${{ env.MANIFEST }})"; do
+            if gsutil -q cp "${{ env.GCS_CLEAN }}/${{ env.SLUG }}/${{ env.YEAR }}/_derived/$f" \
+                "data/derived/$f" 2>/dev/null; then
+              echo "state restored: $f"
+            else
+              echo "state assente (primo run): $f"
+            fi
+          done
+
+      # ── Estrazione ─────────────────────────────────────────────────
+      - name: Extract incremental (ddlpres)
+        if: env.MODE == 'incremental'
+        run: |
+          python3 scripts/extract.py \
+            --legislatura "${{ env.LEGISLATURA }}" \
+            --tipologie ddlpres \
+            --drop-zero-text \
+            --out "${{ env.OUT }}" \
+            --incremental
+
+      - name: Extract full corpus (tipologie parsate)
+        if: env.MODE == 'full'
+        run: |
+          python3 scripts/extract.py \
+            --legislatura "${{ env.LEGISLATURA }}" \
+            --tipologie "${{ env.FULL_TIPOLOGIE }}" \
+            --drop-zero-text \
+            --out "${{ env.FULL_OUT }}"
+
+      # ── Layer toolkit (solo incremental: il layer copre ddlpres) ───
+      - name: Run toolkit
+        if: env.MODE == 'incremental'
+        run: |
+          python3 -m toolkit.cli.app run --config datasets/senato-corpus/dataset.yml
+
+      # ── Publish GCS (solo incremental) ─────────────────────────────
+      - name: Publish clean + mart + state to GCS
+        if: env.MODE == 'incremental' && steps.gcp.outputs.ready == 'true'
+        run: |
+          gsutil -m rsync -r -x ".*/_(run|validate)/.*|.*/metadata\.json$" \
+            "out/data/clean/${{ env.SLUG }}/${{ env.YEAR }}/" \
+            "${{ env.GCS_CLEAN }}/${{ env.SLUG }}/${{ env.YEAR }}/"
+          gsutil -m rsync -r -x ".*/_(run|validate)/.*|.*/metadata\.json$" \
+            "out/data/mart/${{ env.SLUG }}/${{ env.YEAR }}/" \
+            "${{ env.GCS_MART }}/${{ env.SLUG }}/${{ env.YEAR }}/"
+          gsutil -q cp "${{ env.OUT }}" \
+            "${{ env.GCS_CLEAN }}/${{ env.SLUG }}/${{ env.YEAR }}/_derived/"
+          gsutil -q cp "${{ env.MANIFEST }}" \
+            "${{ env.GCS_CLEAN }}/${{ env.SLUG }}/${{ env.YEAR }}/_derived/"
+          echo "✅ published ${{ env.SLUG }} clean+mart+state"
+
+      # ── Artifact del corpus full (dispatch mode=full) ──────────────
+      - name: Upload full corpus artifact
+        if: env.MODE == 'full'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: senato-corpus-full
+          path: data/derived/
+          retention-days: 60
+
+      # ── Registry (artifact catalogo) ───────────────────────────────
+      - name: Build registry
+        run: python3 -m toolkit.cli.app registry build --write
+
+      - name: Check registry diff
+        id: diff
+        run: |
+          if git status --porcelain -- registry/ | grep -q .; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create draft registry PR
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          BRANCH="pipeline-registry/${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add registry/
+          git commit -m "chore(pipeline): aggiorna registry" || exit 0
+          git push --force-with-lease -u origin "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Create/update draft registry PR
+        if: steps.diff.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = `pipeline-registry/${context.runId}`;
+            const { repo, owner } = context.repo;
+            const existing = await github.rest.pulls.list({ owner, repo, head: branch, state: 'open' });
+            const params = { owner, repo, title: 'chore(pipeline): aggiorna registry',
+              body: 'Registry artifacts updated after pipeline run.', head: branch, base: 'main' };
+            if (existing.data.length > 0) {
+              await github.rest.pulls.update({ owner, repo, pull_number: existing.data[0].number,
+                title: params.title, body: params.body });
+            } else {
+              params.draft = true;
+              await github.rest.pulls.create(params);
+            }
