@@ -8,6 +8,18 @@
 -- http://dati.senato.it/19/Emend/S/<N>/<A|C>/<id> → fase = S.<N>. È la
 -- chiave di bridge verso senato_ddl.fase (open-politica).
 -- Tipologia: emend = Aula, emendc = Commissione.
+--
+-- Drop voluto di colonne raw (17 rimosse, 1 aggiunta, net -16), documentato:
+-- - concetti dei disegni di legge non applicabili agli emendamenti:
+--   articles_count, paragraphs_count, doc_title, short_title, famiglia,
+--   doc_type, atto_dir
+-- - tecniche/URI: raw_url, work_uri, expression_uri, manifestation_uri,
+--   file_name, text_preview (prefix di text_integrale)
+-- - ridondanti con l'estrazione: legislatura (già nel grafo 19), FRBRname
+--   (0 valorizzato sugli emendamenti), FRBRsubtype/FRBRnumber (rinominati)
+-- - decisione: expression_date/manifestation_date DROPPATE qui (in
+--   senato_corpus erano mantenute come informative) — per gli emendamenti
+--   la data utile è work_date (presentazione), le altre sono boilerplate FRBR
 
 SELECT
     'S.' || regexp_extract(work_uri, 'Emend/S/(\d+)', 1)    AS fase,
