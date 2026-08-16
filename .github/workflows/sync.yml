@@ -75,7 +75,7 @@ jobs:
         if: steps.gcp.outputs.ready == 'true'
         run: |
           mkdir -p data/derived
-          for f in leg19_ddlpres_v0.parquet leg19_ddlpres_v0.manifest.json; do
+          for f in "$(basename ${{ env.OUT }})" "$(basename ${{ env.MANIFEST }})"; do
             if gsutil -q cp "${{ env.GCS_CLEAN }}/${{ env.SLUG }}/${{ env.YEAR }}/_derived/$f" \
                 "data/derived/$f" 2>/dev/null; then
               echo "state restored: $f"
