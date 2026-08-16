@@ -1,0 +1,160 @@
+# Sync — estrazione incrementale + layer toolkit + publish GCS + registry
+#
+# Pattern RNA adattato all'ingest git:
+#   1. restaura lo stato di estrazione precedente (parquet + manifest da GCS)
+#   2. estrazione incrementale (git fetch delta → parse → merge)
+#   3. layer toolkit senato_corpus (raw local_file → clean → mart)
+#   4. publish su GCS: clean+mart (canonici) + stato _derived (per il delta
+#      su runner fresco)
+#   5. registry build → draft PR se diff
+#
+# Lo stato dell'incrementale è il manifest (path→sha) + lo snapshot parquet:
+# senza stato su GCS (primo run) si fa full (clone git + parse completo).
+#
+# Scope attuale: ddlpres (il layer senato_corpus copre ddlpres). L'estensione
+# a tutte le tipologie è F1.4 (issue #12).
+
+name: sync
+on:
+  schedule:
+    # Mensile, in linea con la convenzione del Lab (open-politica fa lo stesso)
+    - cron: "0 6 1 * *"
+  workflow_dispatch:
+    inputs:
+      legislatura:
+        description: "Legislatura"
+        default: "Leg19"
+        required: false
+      tipologie:
+        description: "Tipologie (default ddlpres)"
+        default: "ddlpres"
+        required: false
+
+concurrency:
+  group: senato-akn-sync
+  cancel-in-progress: false
+
+env:
+  GCS_CLEAN: gs://dataciviclab-clean
+  GCS_MART: gs://dataciviclab-mart
+  SLUG: senato_corpus
+  YEAR: "2026"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6.0.3
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+          pip install git+https://github.com/dataciviclab/toolkit.git@main
+          pip install duckdb
+
+      # ── Auth GCP (graceful: se la SA non è configurata, niente publish) ──
+      - name: Auth GCP
+        id: gcp
+        if: env.GCP_SA_KEY_SENATO_AKN != ''
+        run: |
+          printf '%s\n' "$GCP_SA_KEY_SENATO_AKN" > /tmp/gcp-key.json
+          gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+        env:
+          GCP_SA_KEY_SENATO_AKN: ${{ secrets.GCP_SA_KEY_SENATO_AKN }}
+
+      # ── Restore stato estrazione (parquet+manifest) per il delta ──
+      - name: Restore extraction state from GCS
+        if: steps.gcp.outputs.ready == 'true'
+        run: |
+          mkdir -p data/derived
+          for f in leg19_ddlpres_v0.parquet leg19_ddlpres_v0.manifest.json; do
+            if gsutil -q cp "${{ env.GCS_CLEAN }}/${{ env.SLUG }}/${{ env.YEAR }}/_derived/$f" \
+                "data/derived/$f" 2>/dev/null; then
+              echo "state restored: $f"
+            else
+              echo "state assente (primo run): $f"
+            fi
+          done
+
+      # ── Estrazione incrementale (clone git + fetch delta + merge) ──
+      - name: Extract incremental
+        run: |
+          python3 scripts/extract.py \
+            --legislatura "${{ inputs.legislatura || 'Leg19' }}" \
+            --tipologie "${{ inputs.tipologie || 'ddlpres' }}" \
+            --drop-zero-text \
+            --incremental
+
+      # ── Layer toolkit: raw local_file → clean → mart ──
+      - name: Run toolkit
+        run: |
+          python3 -m toolkit.cli.app run --config datasets/senato-corpus/dataset.yml
+
+      # ── Publish: clean+mart (canonici) + stato _derived (per il delta) ──
+      - name: Publish clean + mart + state to GCS
+        if: steps.gcp.outputs.ready == 'true'
+        run: |
+          gsutil -m rsync -r -x ".*/_(run|validate)/.*|.*/metadata\.json$" \
+            "out/data/clean/${{ env.SLUG }}/${{ env.YEAR }}/" \
+            "${{ env.GCS_CLEAN }}/${{ env.SLUG }}/${{ env.YEAR }}/"
+          gsutil -m rsync -r -x ".*/_(run|validate)/.*|.*/metadata\.json$" \
+            "out/data/mart/${{ env.SLUG }}/${{ env.YEAR }}/" \
+            "${{ env.GCS_MART }}/${{ env.SLUG }}/${{ env.YEAR }}/"
+          gsutil -q cp data/derived/leg19_ddlpres_v0.parquet \
+            "${{ env.GCS_CLEAN }}/${{ env.SLUG }}/${{ env.YEAR }}/_derived/"
+          gsutil -q cp data/derived/leg19_ddlpres_v0.manifest.json \
+            "${{ env.GCS_CLEAN }}/${{ env.SLUG }}/${{ env.YEAR }}/_derived/"
+          echo "✅ published ${{ env.SLUG }} clean+mart+state"
+
+      # ── Registry (artifact catalogo) ────────────────────────────────────
+      - name: Build registry
+        run: python3 -m toolkit.cli.app registry build --write
+
+      - name: Check registry diff
+        id: diff
+        run: |
+          if git status --porcelain -- registry/ | grep -q .; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create draft registry PR
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          BRANCH="sync-registry/${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add registry/
+          git commit -m "chore(sync): aggiorna registry" || exit 0
+          git push --force-with-lease -u origin "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Create/update draft registry PR
+        if: steps.diff.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = `sync-registry/${context.runId}`;
+            const { repo, owner } = context.repo;
+            const existing = await github.rest.pulls.list({ owner, repo, head: branch, state: 'open' });
+            const params = { owner, repo, title: 'chore(sync): aggiorna registry',
+              body: 'Registry artifacts updated after sync run.', head: branch, base: 'main' };
+            if (existing.data.length > 0) {
+              await github.rest.pulls.update({ owner, repo, pull_number: existing.data[0].number,
+                title: params.title, body: params.body });
+            } else {
+              params.draft = true;
+              await github.rest.pulls.create(params);
+            }
