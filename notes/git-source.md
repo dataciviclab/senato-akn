@@ -52,4 +52,4 @@ Il git pack è ~30× più veloce delle richieste singole e risolve la truncation
 - **Contro**: richiede `git` sul runner (ubiquitous); il clone iniziale di una
   legislatura è ~minuti; per più legislature il disco cresce (~2 GB/leg).
 - **Open**: la persistenza del clone su runner effimero (actions/cache o GCS)
-  è il follow-up del workflow `sync`.
+  è il follow-up del workflow `pipeline` (mode incremental).

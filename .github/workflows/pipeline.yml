@@ -1,28 +1,44 @@
-# Sync — estrazione incrementale + layer toolkit + publish GCS + registry
+# Pipeline — manutenzione del corpus: extract → toolkit → GCS → registry
 #
-# Pattern RNA adattato all'ingest git:
-#   1. restaura lo stato di estrazione precedente (parquet + manifest da GCS)
-#   2. estrazione incrementale (git fetch delta → parse → merge)
+# Pattern classico del Lab (RNA/open-politica), adattato all'ingest git:
+#   1. (incremental) restore stato estrazione (parquet + manifest da GCS)
+#   2. estrazione: delta ddlpres (--incremental) oppure full corpus
 #   3. layer toolkit senato_corpus (raw local_file → clean → mart)
 #   4. publish su GCS: clean+mart (canonici) + stato _derived (per il delta
 #      su runner fresco)
 #   5. registry build → draft PR se diff
 #
-# Lo stato dell'incrementale è il manifest (path→sha) + lo snapshot parquet:
-# senza stato su GCS (primo run) si fa full (clone git + parse completo).
+# Trigger:
+#   - schedule mensile → incremental
+#   - pull_request merged su datasets/**.py → incremental (refresh dopo merge)
+#   - workflow_dispatch: mode = incremental (default) | full (corpus completo
+#     parsabile, upload artifact, niente layer/publish)
 #
-# Scope attuale: ddlpres (il layer senato_corpus copre ddlpres). L'estensione
-# a tutte le tipologie è F1.4 (issue #12).
+# Scope fisso ddlpres/Leg19 per l'incrementale (coincide col layer
+# senato_corpus e coi nomi restore/publish). Altre tipologie → mode full.
+# F1.4 (#12) generalizzerà il layer alle altre tipologie.
 
-name: sync
+name: pipeline
 on:
+  pull_request:
+    types: [closed]
+    paths:
+      - "datasets/**"
+      - "**.py"
+      - "Makefile"
+      - "pyproject.toml"
+      - "requirements.txt"
   schedule:
-    # Mensile, in linea con la convenzione del Lab (open-politica fa lo stesso)
     - cron: "0 6 1 * *"
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "incremental (delta ddlpres + publish) | full (corpus completo, artifact)"
+        default: "incremental"
+        required: false
 
 concurrency:
-  group: senato-akn-sync
+  group: senato-akn-pipeline
   cancel-in-progress: false
 
 env:
@@ -30,16 +46,15 @@ env:
   GCS_MART: gs://dataciviclab-mart
   SLUG: senato_corpus
   YEAR: "2026"
-  # Scope fisso: ddlpres/Leg19 (coincide col layer senato_corpus e coi nomi
-  # restore/publish). Altre tipologie → workflow `build` (ad-hoc). F1.4 (#12)
-  # generalizzerà il sync alle altre tipologie.
   LEGISLATURA: Leg19
-  TIPOLOGIE: ddlpres
+  FULL_TIPOLOGIE: ddlpres,emend,emendc,ddlmess,ddlcomm
   OUT: data/derived/leg19_ddlpres_v0.parquet
   MANIFEST: data/derived/leg19_ddlpres_v0.manifest.json
+  FULL_OUT: data/derived/leg19_full_v0.parquet
 
 jobs:
-  sync:
+  pipeline:
+    if: github.event.pull_request.merged == true || github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -59,7 +74,7 @@ jobs:
           pip install git+https://github.com/dataciviclab/toolkit.git@main
           pip install duckdb
 
-      # ── Auth GCP (graceful: se la SA non è configurata, niente publish) ──
+      # ── Auth GCP (graceful: se la SA non è configurata, niente GCS) ──
       - name: Auth GCP
         id: gcp
         if: env.GCP_SA_KEY_SENATO_AKN != ''
@@ -70,9 +85,22 @@ jobs:
         env:
           GCP_SA_KEY_SENATO_AKN: ${{ secrets.GCP_SA_KEY_SENATO_AKN }}
 
-      # ── Restore stato estrazione (parquet+manifest) per il delta ──
+      # ── Mode: incremental di default (schedule/merge); dispatch può
+      #    chiedere full ─────────────────────────────────────────────
+      - name: Resolve mode
+        id: mode
+        run: |
+          MODE="incremental"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            MODE="${{ inputs.mode || 'incremental' }}"
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "MODE=$MODE" >> "$GITHUB_ENV"
+          echo "Mode: $MODE"
+
+      # ── Restore stato estrazione (solo incremental) ────────────────
       - name: Restore extraction state from GCS
-        if: steps.gcp.outputs.ready == 'true'
+        if: env.MODE == 'incremental' && steps.gcp.outputs.ready == 'true'
         run: |
           mkdir -p data/derived
           for f in "$(basename ${{ env.OUT }})" "$(basename ${{ env.MANIFEST }})"; do
@@ -84,24 +112,35 @@ jobs:
             fi
           done
 
-      # ── Estrazione incrementale (clone git + fetch delta + merge) ──
-      - name: Extract incremental
+      # ── Estrazione ─────────────────────────────────────────────────
+      - name: Extract incremental (ddlpres)
+        if: env.MODE == 'incremental'
         run: |
           python3 scripts/extract.py \
             --legislatura "${{ env.LEGISLATURA }}" \
-            --tipologie "${{ env.TIPOLOGIE }}" \
+            --tipologie ddlpres \
             --drop-zero-text \
             --out "${{ env.OUT }}" \
             --incremental
 
-      # ── Layer toolkit: raw local_file → clean → mart ──
+      - name: Extract full corpus (tipologie parsate)
+        if: env.MODE == 'full'
+        run: |
+          python3 scripts/extract.py \
+            --legislatura "${{ env.LEGISLATURA }}" \
+            --tipologie "${{ env.FULL_TIPOLOGIE }}" \
+            --drop-zero-text \
+            --out "${{ env.FULL_OUT }}"
+
+      # ── Layer toolkit (solo incremental: il layer copre ddlpres) ───
       - name: Run toolkit
+        if: env.MODE == 'incremental'
         run: |
           python3 -m toolkit.cli.app run --config datasets/senato-corpus/dataset.yml
 
-      # ── Publish: clean+mart (canonici) + stato _derived (per il delta) ──
+      # ── Publish GCS (solo incremental) ─────────────────────────────
       - name: Publish clean + mart + state to GCS
-        if: steps.gcp.outputs.ready == 'true'
+        if: env.MODE == 'incremental' && steps.gcp.outputs.ready == 'true'
         run: |
           gsutil -m rsync -r -x ".*/_(run|validate)/.*|.*/metadata\.json$" \
             "out/data/clean/${{ env.SLUG }}/${{ env.YEAR }}/" \
@@ -115,7 +154,16 @@ jobs:
             "${{ env.GCS_CLEAN }}/${{ env.SLUG }}/${{ env.YEAR }}/_derived/"
           echo "✅ published ${{ env.SLUG }} clean+mart+state"
 
-      # ── Registry (artifact catalogo) ────────────────────────────────────
+      # ── Artifact del corpus full (dispatch mode=full) ──────────────
+      - name: Upload full corpus artifact
+        if: env.MODE == 'full'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: senato-corpus-full
+          path: data/derived/
+          retention-days: 60
+
+      # ── Registry (artifact catalogo) ───────────────────────────────
       - name: Build registry
         run: python3 -m toolkit.cli.app registry build --write
 
@@ -131,12 +179,12 @@ jobs:
       - name: Create draft registry PR
         if: steps.diff.outputs.changed == 'true'
         run: |
-          BRANCH="sync-registry/${GITHUB_RUN_ID}"
+          BRANCH="pipeline-registry/${GITHUB_RUN_ID}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -B "$BRANCH"
           git add registry/
-          git commit -m "chore(sync): aggiorna registry" || exit 0
+          git commit -m "chore(pipeline): aggiorna registry" || exit 0
           git push --force-with-lease -u origin "$BRANCH"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
@@ -145,11 +193,11 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const branch = `sync-registry/${context.runId}`;
+            const branch = `pipeline-registry/${context.runId}`;
             const { repo, owner } = context.repo;
             const existing = await github.rest.pulls.list({ owner, repo, head: branch, state: 'open' });
-            const params = { owner, repo, title: 'chore(sync): aggiorna registry',
-              body: 'Registry artifacts updated after sync run.', head: branch, base: 'main' };
+            const params = { owner, repo, title: 'chore(pipeline): aggiorna registry',
+              body: 'Registry artifacts updated after pipeline run.', head: branch, base: 'main' };
             if (existing.data.length > 0) {
               await github.rest.pulls.update({ owner, repo, pull_number: existing.data[0].number,
                 title: params.title, body: params.body });

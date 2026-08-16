@@ -45,8 +45,8 @@ In alcuni mesi, i decreti superano il 60% del testo totale pur essendo meno del 
 
 ### 1. Via GitHub Artifact
 
-I parquet derivati sono disponibili come GitHub Artifact del workflow `build`
-(→ Actions → download). Non sono in git.
+I parquet derivati sono disponibili come GitHub Artifact del workflow `pipeline`
+(mode `full` → Actions → download). Non sono in git.
 
 ### 2. Via SQL su parquet
 
@@ -92,13 +92,12 @@ python3 scripts/build_summaries.py      # aggregazioni per famiglia e mese
   path→sha + merge del parquet).
 - **Layer toolkit**: `datasets/senato-corpus` (raw→clean→mart) — il corpus
   è interrogabile e agganciabile (bridge `atto_num` ↔ `senato_ddl`).
-- Follow-up: workflow `sync`, GCS publish + registry, parser `an:debate`.
+- Follow-up: parser `an:debate`, estensione del layer alle altre tipologie (F1.4).
 
 ## Prossimi passi
 
 1. Estendere il parser a `<an:debate>` (resoconti: resaula, sommcomm)
-2. Workflow `sync` incrementale + GCS publish
-3. Incrocio con italia-corpus: proposto (Senato) vs legge (vigente)
+2. Incrocio con italia-corpus: proposto (Senato) vs legge (vigente)
 
 ## Architettura
 
@@ -107,7 +106,7 @@ scripts/          # extract.py, build_summaries.py
 senato_akn/       # core: extract, git_source, parser, classifier, summarize
 data/raw/akn/     # clone git upstream (gitignored) — il "download" è via pack
 data/derived/     # parquet + manifest generati (gitignored, GitHub Artifact)
-.github/workflows/# test, build, build-full
+.github/workflows/# test (CI), pipeline (extract→toolkit→GCS→registry)
 ```
 
 ## Licenza

@@ -176,7 +176,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260816T093300Z_ea6101d6",
+        "run_id": "20260816T095736Z_72ecaf97",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -191,11 +191,11 @@
         "output_bytes": {
           "raw": 6495810,
           "clean": 5552462,
-          "mart": 15280
+          "mart": 15368
         },
-        "started_at": "2026-08-16T09:33:00.080260+00:00",
-        "finished_at": "2026-08-16T09:33:01.386287+00:00",
-        "duration_seconds": 1.306
+        "started_at": "2026-08-16T09:57:36.285387+00:00",
+        "finished_at": "2026-08-16T09:57:37.503651+00:00",
+        "duration_seconds": 1.218
       }
     }
   ],
