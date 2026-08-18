@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repo": "senato-akn",
   "source_repo": "dataciviclab/senato-akn",
-  "updated_at": "2026-08-16",
+  "updated_at": "2026-08-18",
   "datasets": [
     {
       "slug": "senato_corpus",
@@ -145,6 +145,100 @@
       ]
     },
     {
+      "slug": "senato_dibattito",
+      "name": "Senato Dibattito",
+      "description": "Ogni intervento parlamentare nella XIX legislatura (Aula `resaula` e Commissione `sommcomm`), dal corpus Akoma Ntoso. Una riga = un intervento, con oratore (bridge osr:Persona → senato_anagrafica) e testo.",
+      "source": "",
+      "source_id": "senato_akn",
+      "period": {
+        "start": 2022,
+        "end": 2026
+      },
+      "tags": [
+        "politica",
+        "senato",
+        "dibattito",
+        "interventi",
+        "resoconti",
+        "oratori"
+      ],
+      "category": "politica",
+      "columns": [
+        {
+          "name": "tipologia",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "data_seduta",
+          "type": "DATE",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "document_id",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "path",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "senatore_id",
+          "type": "BIGINT",
+          "role": "dimension",
+          "description": "",
+          "semantic_type": "senator_id"
+        },
+        {
+          "name": "persona_id",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": "",
+          "semantic_type": "person_id"
+        },
+        {
+          "name": "nome_oratore",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "ordine_intervento",
+          "type": "BIGINT",
+          "role": "metric",
+          "description": ""
+        },
+        {
+          "name": "text_len",
+          "type": "BIGINT",
+          "role": "metric",
+          "description": ""
+        },
+        {
+          "name": "text_intervento",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        }
+      ],
+      "location": {
+        "type": "gcs",
+        "path": "gs://dataciviclab-clean/senato_dibattito/2026/senato_dibattito_2026_clean.parquet",
+        "multi_file": false
+      },
+      "stage": "incubating",
+      "mart_refs": [
+        "senato_dibattito__mart_interventi_per_persona",
+        "senato_dibattito__mart_dibattito_per_seduta"
+      ]
+    },
+    {
       "slug": "senato_emendamenti",
       "name": "Senato Emendamenti",
       "description": "Ogni emendamento presentato nella XIX legislatura (Aula `emend` e Commissione `emendc`), dal corpus Akoma Ntoso. Un documento per riga, con la fase dell'atto a cui si riferisce (S.NNN) — bridge verso senato_ddl.",
@@ -257,6 +351,26 @@
       }
     },
     {
+      "slug": "senato_dibattito__mart_dibattito_per_seduta",
+      "dataset": "senato_dibattito",
+      "table": "mart_dibattito_per_seduta",
+      "location": {
+        "type": "gcs",
+        "path": "gs://dataciviclab-mart/senato_dibattito/2026/mart_dibattito_per_seduta.parquet",
+        "multi_file": false
+      }
+    },
+    {
+      "slug": "senato_dibattito__mart_interventi_per_persona",
+      "dataset": "senato_dibattito",
+      "table": "mart_interventi_per_persona",
+      "location": {
+        "type": "gcs",
+        "path": "gs://dataciviclab-mart/senato_dibattito/2026/mart_interventi_per_persona.parquet",
+        "multi_file": false
+      }
+    },
+    {
       "slug": "senato_emendamenti__mart_emendamenti_per_atto",
       "dataset": "senato_emendamenti",
       "table": "mart_emendamenti_per_atto",
@@ -276,7 +390,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260816T223703Z_c3993696",
+        "run_id": "20260818T150501Z_4c9134ff",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -285,17 +399,47 @@
           "mart": 100
         },
         "output_rows": {
-          "clean": 1891,
-          "mart": 1900
+          "clean": 1892,
+          "mart": 1901
         },
         "output_bytes": {
-          "raw": 6495810,
-          "clean": 5552462,
-          "mart": 14230
+          "raw": 6496140,
+          "clean": 5552628,
+          "mart": 14265
         },
-        "started_at": "2026-08-16T22:37:03.276705+00:00",
-        "finished_at": "2026-08-16T22:37:03.614897+00:00",
-        "duration_seconds": 0.338
+        "started_at": "2026-08-18T15:05:01.312062+00:00",
+        "finished_at": "2026-08-18T15:05:01.649488+00:00",
+        "duration_seconds": 0.337
+      }
+    },
+    {
+      "id": "senato_dibattito",
+      "source_id": "senato_akn",
+      "status": "ok",
+      "label": "senato_dibattito",
+      "detail": "anno 2026 — mart: si",
+      "action": "",
+      "run": {
+        "run_id": "20260818T150502Z_efbdf13e",
+        "year": 2026,
+        "status": "SUCCESS",
+        "quality_score": {
+          "raw": 100,
+          "clean": 100,
+          "mart": 100
+        },
+        "output_rows": {
+          "clean": 195262,
+          "mart": 775
+        },
+        "output_bytes": {
+          "raw": 172704230,
+          "clean": 44472331,
+          "mart": 12230
+        },
+        "started_at": "2026-08-18T15:05:02.230863+00:00",
+        "finished_at": "2026-08-18T15:05:04.423243+00:00",
+        "duration_seconds": 2.192
       }
     },
     {
@@ -306,7 +450,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260816T223704Z_4946d986",
+        "run_id": "20260818T150504Z_28362bef",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -321,11 +465,11 @@
         "output_bytes": {
           "raw": 31794263,
           "clean": 18882175,
-          "mart": 6543
+          "mart": 6517
         },
-        "started_at": "2026-08-16T22:37:04.344833+00:00",
-        "finished_at": "2026-08-16T22:37:05.356594+00:00",
-        "duration_seconds": 1.012
+        "started_at": "2026-08-18T15:05:04.997842+00:00",
+        "finished_at": "2026-08-18T15:05:05.930629+00:00",
+        "duration_seconds": 0.933
       }
     }
   ],
@@ -345,6 +489,28 @@
         ],
         "types": {
           "ddl_id": 1
+        }
+      },
+      "Persona": {
+        "entity": "Persona",
+        "label": "Persona",
+        "datasets": [
+          {
+            "slug": "senato_dibattito",
+            "name": "Senato Dibattito",
+            "column": "senatore_id",
+            "semantic_type": "senator_id"
+          },
+          {
+            "slug": "senato_dibattito",
+            "name": "Senato Dibattito",
+            "column": "persona_id",
+            "semantic_type": "person_id"
+          }
+        ],
+        "types": {
+          "senator_id": 1,
+          "person_id": 1
         }
       }
     },
