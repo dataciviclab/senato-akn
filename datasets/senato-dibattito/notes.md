@@ -31,5 +31,8 @@ Verificato su open-politica: 251 oratori distinti, 204 match con anagrafica
 
 ## Note / limiti
 - 132 interventi sommcomm (0.07%) senza nome: reference senza showAs o role
+- 125 interventi con `senatore_id=0` esclusi: `by="#p0"` (sommcomm), ref
+  non risolto → fallback `ref.lstrip("p")` → id fittizio. Esclusi nel clean
+  (id 0 non esiste in senato_anagrafica → bridge rotto)
 - il nome arriva da due fonti (showAs full-name vs from in maiuscolo) →
   possibile normalizzazione futura (es. solo showAs)

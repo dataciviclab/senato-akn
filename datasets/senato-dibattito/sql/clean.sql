@@ -38,4 +38,4 @@ FROM raw_input
 CROSS JOIN UNNEST(speakers) WITH ORDINALITY AS s
 WHERE length(s.unnest."text") > 0
   AND s.unnest.senatore_id IS NOT NULL
-  AND s.unnest.senatore_id != ''
+  AND s.unnest.senatore_id NOT IN ('', '0')
