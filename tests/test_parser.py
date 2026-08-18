@@ -1,13 +1,21 @@
 """Test per senato_akn.parser — su fixture XML reale."""
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
 
 from senato_akn.parser import (
-    parse_xml, body_text, first_text, normalize_space, attr_value,
-    _detect_doc_type, _amendment_text, _amendment_act_ref,
+    _amendment_act_ref,
+    _amendment_text,
+    _debate_speakers,
+    _debate_text,
+    _detect_doc_type,
+    attr_value,
+    body_text,
+    first_text,
+    normalize_space,
+    parse_xml,
 )
-import xml.etree.ElementTree as ET
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
 FIXTURE_PATH = "Atto00055177/ddlpres/01360967-ft.akn.xml"
@@ -185,3 +193,106 @@ class TestParseAmendment:
         assert result["doc_type"] == "act"
         assert result["text_len"] > 0
         assert result["FRBRsubtype"] == ""  # solo per amendment
+
+
+# ---------------------------------------------------------------------------
+# Test per documenti <an:debate> (resoconti aula/commissione)
+# ---------------------------------------------------------------------------
+
+DEBATE_XML = """\
+<an:akomaNtoso xmlns:an="http://docs.oasis-open.org/legaldocml/ns/akn/3.0/CSD03">
+  <an:debate>
+    <an:meta>
+      <an:identification source="#redattore">
+        <an:FRBRWork>
+          <an:FRBRthis value="http://dati.senato.it/osr/RESAULA/2026-01-01/1"/>
+          <an:FRBRuri value="http://dati.senato.it/osr/RESAULA/2026-01-01/1"/>
+          <an:FRBRdate date="2026-01-01" name="presentazione"/>
+          <an:FRBRauthor href="#senato"/>
+          <an:FRBRsubtype value="RESAULA"/>
+          <an:FRBRnumber value="1"/>
+          <an:FRBRname value="resoconto di aula"/>
+        </an:FRBRWork>
+        <an:FRBRExpression>
+          <an:FRBRuri value="http://dati.senato.it/osr/RESAULA/2026-01-01/1/ita@"/>
+          <an:FRBRdate date="2026-01-01" name="presentazione"/>
+          <an:FRBRauthor href="#senato"/>
+          <an:FRBRlanguage language="it"/>
+        </an:FRBRExpression>
+        <an:FRBRManifestation>
+          <an:FRBRuri value="http://dati.senato.it/osr/RESAULA/2026-01-01/1/ita@/main.xml"/>
+          <an:FRBRdate date="2026-01-01" name="presentazione"/>
+          <an:FRBRauthor href="#redattore"/>
+        </an:FRBRManifestation>
+      </an:identification>
+    </an:meta>
+    <an:debateBody title="Resoconto n.1">
+      <an:debateSection id="d1" name="Seduta">
+        <an:speech by="#p100" as="#senatore">
+          <an:from refersTo="#p100">ROSSI</an:from>
+          <an:p>Primo intervento sul tema.</an:p>
+          <an:p>Secondo paragrafo dell'intervento.</an:p>
+        </an:speech>
+        <an:speech by="#p200" as="#senatore">
+          <an:from refersTo="#p200">BIANCHI</an:from>
+          <an:p>Intervento del collega Bianchi.</an:p>
+        </an:speech>
+        <an:speech by="#p100" as="#senatore">
+          <an:from refersTo="#p100">PRESIDENTE</an:from>
+          <an:p>Chiusura della seduta.</an:p>
+        </an:speech>
+      </an:debateSection>
+    </an:debateBody>
+  </an:debate>
+  <an:references source="#redattore">
+    <an:TLCPerson id="p100" href="http://dati.senato.it/osr/Persona/100" showAs="Mario Rossi"/>
+    <an:TLCPerson id="p200" href="http://dati.senato.it/osr/Persona/200" showAs="Luca Bianchi"/>
+  </an:references>
+</an:akomaNtoso>
+"""
+
+
+class TestParseDebate:
+    """Test su XML debate minimalista."""
+
+    @pytest.fixture
+    def result(self) -> dict:
+        return parse_xml(DEBATE_XML, path="Leg19/Atto00000001/resaula/test.xml")
+
+    def test_detect_debate(self) -> None:
+        root = ET.fromstring(DEBATE_XML)
+        assert _detect_doc_type(root) == "debate"
+
+    def test_text_nonempty(self) -> None:
+        root = ET.fromstring(DEBATE_XML)
+        text = _debate_text(root)
+        assert len(text) > 0
+        assert "Primo intervento" in text
+        assert "Chiusura della seduta" in text
+
+    def test_speakers_extracted(self) -> None:
+        root = ET.fromstring(DEBATE_XML)
+        speakers = _debate_speakers(root)
+        assert len(speakers) == 3
+        # nome risolto dal blocco references (showAs full name)
+        assert speakers[0]["senatore_id"] == "100"
+        assert speakers[0]["persona_id"] == "p100"
+        assert speakers[0]["nome"] == "Mario Rossi"
+        assert speakers[1]["senatore_id"] == "200"
+        assert speakers[1]["persona_id"] == "p200"
+        assert speakers[1]["nome"] == "Luca Bianchi"
+
+    def test_parse_xml_debate_fields(self, result: dict) -> None:
+        assert result["doc_type"] == "debate"
+        assert result["text_len"] > 0
+        assert result["speakers_count"] == 3
+        assert len(result["speakers"]) == 3
+        assert result["atto_dir"] == "Leg19"
+
+    def test_backward_compat_act(self) -> None:
+        """ddlpres continua a funzionare (doc_type=act)."""
+        path = FIXTURE_DIR / "sample.akn.xml"
+        result = parse_xml(path.read_bytes(), path=FIXTURE_PATH)
+        assert result["doc_type"] == "act"
+        assert result["speakers_count"] == 0
+        assert result["speakers"] == []

@@ -14,7 +14,7 @@ struttura e contenuto dei testi.
 | **Fonte** | SenatoDellaRepubblica/AkomaNtosoBulkData |
 | **Legislatura** | Leg19 (2022-oggi) |
 | **Documenti estratti** | ddlpres (1.095) · emend (18.563) · emendc (43.046) · ddlmess (214) · ddlcomm (162) |
-| **In attesa di parsing** | resaula (510) · sommcomm (4.512) |
+| **Dibattito** | resaula (990) · sommcomm (7.348) — parser `an:debate` |
 | **Totale Leg19** | 68.114 file XML, ~786 MB |
 
 ## Finding principale
@@ -92,11 +92,14 @@ python3 scripts/build_summaries.py      # aggregazioni per famiglia e mese
   path→sha + merge del parquet).
 - **Layer toolkit**: `datasets/senato-corpus` (raw→clean→mart) — il corpus
   è interrogabile e agganciabile (bridge `atto_num` ↔ `senato_ddl`).
-- Follow-up: parser `an:debate`, estensione del layer alle altre tipologie (F1.4).
+- **Dibattito**: `datasets/senato-dibattito` (raw→clean→mart) — parser
+  `an:debate`, una riga per intervento con oratore (bridge `osr:Persona` →
+  `senato_anagrafica`). 195k interventi tra Aula e Commissione.
+- Follow-up: bridge dibattito → interventi in open-politica (F4 finale).
 
 ## Prossimi passi
 
-1. Estendere il parser a `<an:debate>` (resoconti: resaula, sommcomm)
+1. Bridge dibattito → interventi in open-politica (testo accanto ai metadati)
 2. Incrocio con italia-corpus: proposto (Senato) vs legge (vigente)
 
 ## Architettura

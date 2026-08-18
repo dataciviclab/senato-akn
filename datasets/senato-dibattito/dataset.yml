@@ -1,0 +1,64 @@
+# Dibattito parlamentare (XIX leg.) — resoconti Aula (resaula) + Commissione (sommcomm)
+#
+# Il "chi parla e cosa dice" del Senato: ogni intervento (speech) con oratore.
+# Parser an:debate (debateBody → debateSection → speech by=#pNNNN → from).
+# Il bridge è su persona_id (#pNNNNN) → senato_anagrafica (open-politica).
+root: "../../out"
+schema_version: 1
+
+dataset:
+  name: "senato_dibattito"
+  source_id: "senato_akn"
+  description: "Ogni intervento parlamentare nella XIX legislatura (Aula `resaula` e Commissione `sommcomm`), dal corpus Akoma Ntoso. Una riga = un intervento, con oratore (bridge osr:Persona → senato_anagrafica) e testo."
+  tags: [politica, senato, dibattito, interventi, resoconti, oratori]
+  category: politica
+  years: [2026]
+  time_coverage:
+    start_year: 2022
+    end_year: 2026
+
+raw:
+  output_policy: "overwrite"
+  sources:
+    - name: "dibattito_parquet"
+      type: "local_file"
+      args:
+        path: "../../data/derived/leg19_resaula_sommcomm_v0.parquet"
+        filename: "leg19_resaula_sommcomm_v0.parquet"
+      primary: true
+
+clean:
+  sql: "sql/clean.sql"
+  read:
+    source: auto
+    mode: latest
+  required_columns: [tipologia, data_seduta, document_id, path, senatore_id, persona_id, nome_oratore, text_len]
+  validate:
+    not_null: [senatore_id, text_len]
+    # una riga = un intervento (path + ordine nello speech sequence)
+    primary_key: [path, senatore_id, ordine_intervento]
+    min_rows: 100000
+
+mart:
+  tables:
+    # Chi parla e quanto: per oratore — bridge verso senato_anagrafica
+    - name: "mart_interventi_per_persona"
+      sql: "sql/mart_interventi_per_persona.sql"
+    # Quanto si discute: per seduta
+    - name: "mart_dibattito_per_seduta"
+      sql: "sql/mart_dibattito_per_seduta.sql"
+  required_tables:
+    - "mart_interventi_per_persona"
+  validate:
+    table_rules:
+      mart_interventi_per_persona:
+        required_columns: [senatore_id, n_interventi, testo_totale, n_aula, n_commissione]
+        primary_key: [senatore_id]
+        min_rows: 100
+      mart_dibattito_per_seduta:
+        required_columns: [data_seduta, n_interventi, n_oratori, testo_totale]
+        primary_key: [data_seduta]
+        min_rows: 100
+
+validation:
+  fail_on_error: true

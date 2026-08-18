@@ -46,9 +46,10 @@ env:
   LEGISLATURA: Leg19
   # Parquet derivati per dataset (raw local_file). Un nuovo dataset qui:
   # parquet + manifest, e il loop extract/sync lo prende.
-  FULL_TIPOLOGIE: ddlpres,emend,emendc,ddlmess,ddlcomm
+  FULL_TIPOLOGIE: ddlpres,emend,emendc,ddlmess,ddlcomm,resaula,sommcomm
   OUT_DDLPRES: data/derived/leg19_ddlpres_v0.parquet
   OUT_EMEND: data/derived/leg19_emend_emendc_v0.parquet
+  OUT_DIBATTITO: data/derived/leg19_resaula_sommcomm_v0.parquet
   FULL_OUT: data/derived/leg19_full_v0.parquet
 
 jobs:
@@ -90,7 +91,7 @@ jobs:
         if: env.MODE == 'incremental' && steps.gcp.outputs.ready == 'true'
         run: |
           mkdir -p data/derived
-          for out in "${{ env.OUT_DDLPRES }}" "${{ env.OUT_EMEND }}"; do
+          for out in "${{ env.OUT_DDLPRES }}" "${{ env.OUT_EMEND }}" "${{ env.OUT_DIBATTITO }}"; do
             f="$(basename "$out")"
             m="${f%.parquet}.manifest.json"
             for x in "$f" "$m"; do
@@ -121,6 +122,16 @@ jobs:
             --tipologie emend,emendc \
             --drop-zero-text \
             --out "${{ env.OUT_EMEND }}" \
+            --incremental
+
+      - name: Extract dibattito (resaula+sommcomm)
+        if: env.MODE == 'incremental'
+        run: |
+          python3 scripts/extract.py \
+            --legislatura "${{ env.LEGISLATURA }}" \
+            --tipologie resaula,sommcomm \
+            --drop-zero-text \
+            --out "${{ env.OUT_DIBATTITO }}" \
             --incremental
 
       - name: Extract full corpus (tipologie parsate)
@@ -158,7 +169,7 @@ jobs:
             echo "✅ $slug mart synced"
           done
           # stato di estrazione (parquet+manifest) per il delta su runner fresco
-          for out in "${{ env.OUT_DDLPRES }}" "${{ env.OUT_EMEND }}"; do
+          for out in "${{ env.OUT_DDLPRES }}" "${{ env.OUT_EMEND }}" "${{ env.OUT_DIBATTITO }}"; do
             f="$(basename "$out")"
             m="${f%.parquet}.manifest.json"
             gsutil -q cp "data/derived/$f" "${{ env.GCS_CLEAN }}/_derived/$f"
