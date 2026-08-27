@@ -36,18 +36,21 @@ df_top = df.nlargest(top_n, "n_emend")
 
 try:
     import altair as alt
+    df_melted = df_top[["fase", "n_aula", "n_commissione"]].melt(
+        id_vars="fase", var_name="Camera", value_name="n_emend"
+    )
+    df_melted["Camera"] = df_melted["Camera"].map({"n_aula": "Aula", "n_commissione": "Commissione"})
     chart = (
-        alt.Chart(df_top)
+        alt.Chart(df_melted)
         .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
         .encode(
-            x=alt.X("n_emend:Q", title="N. emendamenti"),
+            x=alt.X("n_emend:Q", title="N. emendamenti", stack="zero"),
             y=alt.Y("fase:N", title="", sort="-x"),
             color=alt.Color(
-                "fase:N",
+                "Camera:N",
                 scale=alt.Scale(domain=["Aula", "Commissione"], range=["#6366f1", "#10b981"]),
-                title="Fase",
             ),
-            tooltip=["fase", alt.Tooltip("n_emend:Q", title="Emendamenti", format=",")],
+            tooltip=["fase", "Camera", alt.Tooltip("n_emend:Q", format=",")],
         )
         .properties(height=max(250, top_n * 25))
     )
