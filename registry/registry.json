@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repo": "senato-akn",
   "source_repo": "dataciviclab/senato-akn",
-  "updated_at": "2026-08-18",
+  "updated_at": "2026-08-27",
   "datasets": [
     {
       "slug": "senato_corpus",
@@ -390,7 +390,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260818T150501Z_4c9134ff",
+        "run_id": "20260827T165930Z_fa7da04a",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -399,17 +399,17 @@
           "mart": 100
         },
         "output_rows": {
-          "clean": 1892,
-          "mart": 1901
+          "clean": 1894,
+          "mart": 1903
         },
         "output_bytes": {
-          "raw": 6496140,
-          "clean": 5552628,
-          "mart": 14265
+          "raw": 6503729,
+          "clean": 5559336,
+          "mart": 14286
         },
-        "started_at": "2026-08-18T15:05:01.312062+00:00",
-        "finished_at": "2026-08-18T15:05:01.649488+00:00",
-        "duration_seconds": 0.337
+        "started_at": "2026-08-27T16:59:30.513913+00:00",
+        "finished_at": "2026-08-27T16:59:30.848651+00:00",
+        "duration_seconds": 0.335
       }
     },
     {
@@ -420,7 +420,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260818T150502Z_efbdf13e",
+        "run_id": "20260827T165931Z_b0a2bc58",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -435,11 +435,11 @@
         "output_bytes": {
           "raw": 172704230,
           "clean": 44472331,
-          "mart": 12230
+          "mart": 12199
         },
-        "started_at": "2026-08-18T15:05:02.230863+00:00",
-        "finished_at": "2026-08-18T15:05:04.423243+00:00",
-        "duration_seconds": 2.192
+        "started_at": "2026-08-27T16:59:31.232772+00:00",
+        "finished_at": "2026-08-27T16:59:33.502064+00:00",
+        "duration_seconds": 2.269
       }
     },
     {
@@ -450,7 +450,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260818T150504Z_28362bef",
+        "run_id": "20260827T165933Z_cfdee1db",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -465,11 +465,11 @@
         "output_bytes": {
           "raw": 31794263,
           "clean": 18882175,
-          "mart": 6517
+          "mart": 6539
         },
-        "started_at": "2026-08-18T15:05:04.997842+00:00",
-        "finished_at": "2026-08-18T15:05:05.930629+00:00",
-        "duration_seconds": 0.933
+        "started_at": "2026-08-27T16:59:33.878310+00:00",
+        "finished_at": "2026-08-27T16:59:34.931658+00:00",
+        "duration_seconds": 1.053
       }
     }
   ],
