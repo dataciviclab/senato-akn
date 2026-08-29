@@ -49,7 +49,7 @@ try:
         )
         .properties(height=350)
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width='stretch')
 except ImportError:
     st.line_chart(df_sorted.set_index("data_seduta")["n_interventi"])
 
@@ -66,7 +66,7 @@ with col1:
             "n_oratori": "Oratori",
             "testo_totale": "Testo",
         }),
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
     )
 
@@ -80,7 +80,7 @@ with col2:
             "n_oratori": "Oratori",
             "n_canali": "Canali",
         }),
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
     )
 

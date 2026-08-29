@@ -47,7 +47,7 @@ try:
         )
         .properties(height=max(300, 20 * 20))
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width='stretch')
 except ImportError:
     st.bar_chart(df_f.head(20).set_index("nome_oratore")[sort_by])
 
@@ -67,7 +67,7 @@ st.dataframe(
         "pct_aula": "% Aula",
         "testo_totale": "Testo",
     }),
-    use_container_width=True,
+    width='stretch',
     hide_index=True,
 )
 
