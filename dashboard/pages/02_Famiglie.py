@@ -1,7 +1,6 @@
 """Famiglie — Analisi per famiglia legislativa."""
 
 import streamlit as st
-from lab_connectors.formatters import fmt_num
 from sources import load_mart
 
 st.title("📁 Famiglie Legislative")
@@ -28,7 +27,7 @@ try:
         title="Peso testuale per famiglia (colore = n. documenti)",
     )
     fig.update_layout(height=500)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 except ImportError:
     st.bar_chart(df_fam.set_index("famiglia")["testo_totale"])
 
@@ -44,7 +43,7 @@ with col1:
             "n_documenti": "Documenti",
             "pct_testo": "% Testo",
         }),
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
     )
 
@@ -57,7 +56,7 @@ with col2:
             "testo_totale": "Testo (caratteri)",
             "n_documenti": "Documenti",
         }),
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
     )
 
@@ -80,7 +79,7 @@ if not df_filtered.empty:
             "testo_totale": "Testo",
             "articoli_totali": "Articoli",
         }),
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
     )
 else:

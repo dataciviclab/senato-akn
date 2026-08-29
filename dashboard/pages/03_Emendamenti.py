@@ -54,7 +54,7 @@ try:
         )
         .properties(height=max(250, top_n * 25))
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width='stretch')
 except ImportError:
     st.bar_chart(df_top.set_index("fase")["n_emend"])
 
@@ -72,6 +72,6 @@ df_display = df.nlargest(50, "n_emend")[
     "n_commissione": "Commissione",
 })
 
-st.dataframe(df_display, use_container_width=True, hide_index=True)
+st.dataframe(df_display, width='stretch', hide_index=True)
 
 st.caption("Dati: Senato della Repubblica · Akoma Ntoso Bulk Data · XIX Legislatura · CC BY 4.0")

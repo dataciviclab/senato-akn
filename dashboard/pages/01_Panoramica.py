@@ -45,7 +45,7 @@ with col_left:
             )
             .properties(height=300)
         )
-        st.altair_chart(chart, use_container_width=True)
+        st.altair_chart(chart, width='stretch')
 
 with col_right:
     st.subheader("Peso testuale per famiglia")
@@ -60,7 +60,7 @@ with col_right:
             )
             .properties(height=300)
         )
-        st.altair_chart(chart2, use_container_width=True)
+        st.altair_chart(chart2, width='stretch')
 
 # ── Il finding chiave ──────────────────────────────────────────────
 st.markdown("---")
@@ -103,6 +103,6 @@ if not df_famiglie.empty:
             )
             .properties(height=300)
         )
-        st.altair_chart(chart_confronto, use_container_width=True)
+        st.altair_chart(chart_confronto, width='stretch')
 
 st.caption("Dati: Senato della Repubblica · Akoma Ntoso Bulk Data · XIX Legislatura · CC BY 4.0")

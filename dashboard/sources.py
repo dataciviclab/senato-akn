@@ -6,17 +6,22 @@ Nessun prefix — i dati sono pubblicati alla radice del bucket.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import streamlit as st
 
 from lab_connectors.duckdb.queries import (
     load_clean as _load_clean,
     load_mart_table as _load_mart_table,
     query_clean as _query_clean,
+    years_from_registry,
 )
-from lab_connectors.formatters import fmt_eur, fmt_num
+from lab_connectors.registry import load_registry
 
 PREFIX = ""
-YEARS = [2022, 2023, 2024, 2025, 2026]
+
+_registry = load_registry(Path(__file__).parent.parent / "registry" / "registry.json")
+YEARS = years_from_registry(_registry)
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
