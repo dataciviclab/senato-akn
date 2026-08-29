@@ -16,7 +16,6 @@ from lab_connectors.duckdb.queries import (
     query_clean as _query_clean,
     years_from_registry,
 )
-from lab_connectors.formatters import fmt_eur, fmt_num
 from lab_connectors.registry import load_registry
 
 PREFIX = ""

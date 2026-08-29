@@ -1,7 +1,6 @@
 """Famiglie — Analisi per famiglia legislativa."""
 
 import streamlit as st
-from lab_connectors.formatters import fmt_num
 from sources import load_mart
 
 st.title("📁 Famiglie Legislative")
