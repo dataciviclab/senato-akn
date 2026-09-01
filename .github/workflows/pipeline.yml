@@ -40,6 +40,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+  GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
   GCS_CLEAN: gs://dataciviclab-clean
   GCS_MART: gs://dataciviclab-mart
   YEAR: "2026"
