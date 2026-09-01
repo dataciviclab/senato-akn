@@ -66,12 +66,18 @@ jobs:
 
       - uses: dataciviclab/.github/actions/python-setup@main
 
-      # ── Auth GCP (graceful: se la SA non è configurata, niente GCS) ──
-      - name: Auth GCP
+      # ── Auth GCP (WIF) ─────────────────────────────────────────
+      - name: GCP Auth (WIF)
         id: gcp
-        uses: dataciviclab/.github/actions/gcs-auth@main
-        env:
-          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY_SENATO_AKN }}
+        if: env.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && env.GCP_SERVICE_ACCOUNT != ''
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        if: env.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && env.GCP_SERVICE_ACCOUNT != ''
+        uses: google-github-actions/setup-gcloud@v3
 
       # ── Mode: incremental di default (schedule/merge); dispatch può
       #    chiedere full ─────────────────────────────────────────────
@@ -88,7 +94,7 @@ jobs:
 
       # ── Restore stato estrazione (solo incremental) ────────────────
       - name: Restore extraction state from GCS
-        if: env.MODE == 'incremental' && steps.gcp.outputs.ready == 'true'
+        if: env.MODE == 'incremental' && env.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && env.GCP_SERVICE_ACCOUNT != ''
         run: |
           mkdir -p data/derived
           for out in "${{ env.OUT_DDLPRES }}" "${{ env.OUT_EMEND }}" "${{ env.OUT_DIBATTITO }}"; do
@@ -154,7 +160,7 @@ jobs:
 
       # ── Sync GCS: per directory di output (niente slug hardcodato) ─
       - name: Publish clean + mart + state to GCS
-        if: env.MODE == 'incremental' && steps.gcp.outputs.ready == 'true'
+        if: env.MODE == 'incremental' && env.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && env.GCP_SERVICE_ACCOUNT != ''
         run: |
           for slug in $(ls out/data/clean/ 2>/dev/null); do
             gsutil -m rsync -r -x ".*/_(run|validate)/.*|.*/metadata\.json$" \
