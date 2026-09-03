@@ -53,9 +53,7 @@ df_dibattito["_atto_num"] = df_dibattito["path"].apply(
     if re.search(r"Atto0+(\d+)", str(x)) else None
 )
 
-# ── Sidebar: selezione atto ──────────────────────────────────────────
-
-st.sidebar.header("🔍 Cerca Atto")
+# ── Selezione atto ───────────────────────────────────────────────────
 
 # Combina atti da corpus, emendamenti e dibattito
 atti_corpus = df_corpus[["atto_num", "doc_title", "famiglia"]].drop_duplicates("atto_num")
@@ -82,30 +80,34 @@ atti_all = pd.concat([atti_corpus, atti_emend, atti_dib], ignore_index=True)
 atti_all = atti_all.drop_duplicates(subset="atto_num", keep="first")
 atti_options = atti_all.sort_values("atto_num", ascending=False)
 
-# Filtro per famiglia
-famiglie = ["Tutte"] + sorted(
-    atti_options["famiglia"].dropna().unique().tolist()
-)
-famiglia_sel = st.sidebar.selectbox("Famiglia", famiglie, index=0)
+# Filtro famiglia + selector atto in cima alla pagina
+col_fam, col_atto = st.columns([1, 3])
+
+with col_fam:
+    famiglie = ["Tutte"] + sorted(
+        atti_options["famiglia"].dropna().unique().tolist()
+    )
+    famiglia_sel = st.selectbox("Famiglia", famiglie, index=0, label_visibility="visible")
 
 if famiglia_sel != "Tutte":
     atti_filtrati = atti_options[atti_options["famiglia"] == famiglia_sel]
 else:
     atti_filtrati = atti_options
 
-# Selector atto
 def format_atto(row):
-    title = str(row["doc_title"])[:60]
-    return f"S.{int(row['atto_num'])} — {title}..."
+    title = str(row["doc_title"])[:70]
+    return f"S.{int(row['atto_num'])} — {title}"
 
 atti_filtrati = atti_filtrati.copy()
 atti_filtrati["_label"] = atti_filtrati.apply(format_atto, axis=1)
 
-atto_label = st.sidebar.selectbox(
-    "Seleziona atto",
-    atti_filtrati["_label"].tolist(),
-    index=0,
-)
+with col_atto:
+    atto_label = st.selectbox(
+        "Seleziona atto",
+        atti_filtrati["_label"].tolist(),
+        index=0,
+        label_visibility="visible",
+    )
 
 atto_num = int(atti_filtrati.iloc[atti_filtrati["_label"] == atto_label]["atto_num"].iloc[0])
 
