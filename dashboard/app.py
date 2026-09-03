@@ -20,6 +20,7 @@ pages = {
     "Corpus": [
         st.Page("pages/02_Famiglie.py", title="Famiglie", icon="📁"),
         st.Page("pages/03_Emendamenti.py", title="Emendamenti", icon="✏️"),
+        st.Page("pages/07_Scheda_Atto.py", title="Scheda Atto", icon="📜"),
     ],
     "Dibattito": [
         st.Page("pages/04_Sedute.py", title="Sedute", icon="🏛️"),
