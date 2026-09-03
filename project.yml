@@ -32,7 +32,7 @@ infrastructure:
     - test: PR + push (smoke extract + pytest)
     - build: on demand via workflow_dispatch (ddlpres)
     - build-full: on demand via workflow_dispatch (ddlpres,emend,ddlmess,ddlcomm)
-  schedule: none # on demand — niente automazione finché non serve analisi
+  schedule: "0 6 1 * *" # mensile — estrazione incrementale + toolkit run
   artifacts:
     retention: 30-60 giorni
 
@@ -40,4 +40,4 @@ decisions:
   toolkit: no
   dataset_incubator: no
   public_discussion: yes
-  next_step: "estendere parser per i resoconti (an:debate: resaula, sommcomm)"
+  next_step: "bridge dibattito → open-politica + incrocio con italia-corpus (F5)"

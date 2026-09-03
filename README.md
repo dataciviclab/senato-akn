@@ -85,22 +85,22 @@ python3 scripts/build_summaries.py      # aggregazioni per famiglia e mese
   legislatura. La GitHub tree API tronca oltre ~100k entry — l'estrazione
   HTTP scopriva solo ~46% dei file; con git il corpus è completo.
 - **Leg19**: 149.059 file XML (~2,1 GB). Parsate: ddlpres (1.978), emend
-  (44.396), emendc (93.636), ddlmess (435), ddlcomm (273). In attesa del
-  parser `an:debate`: resaula (990), sommcomm (7.351).
+  (44.396), emendc (93.636), ddlmess (435), ddlcomm (273), resaula (990),
+  sommcomm (7.351). Corpus completo.
 - **Estrazione**: clone ~3,4 min (una tantum), fetch delta ~11 s, parsing
   da disco ~1 ms/file. Delta incrementale via `--incremental` (manifest
   path→sha + merge del parquet).
-- **Layer toolkit**: `datasets/senato-corpus` (raw→clean→mart) — il corpus
-  è interrogabile e agganciabile (bridge `atto_num` ↔ `senato_ddl`).
-- **Dibattito**: `datasets/senato-dibattito` (raw→clean→mart) — parser
-  `an:debate`, una riga per intervento con oratore (bridge `osr:Persona` →
-  `senato_anagrafica`). 195k interventi tra Aula e Commissione.
-- Follow-up: bridge dibattito → interventi in open-politica (F4 finale).
+- **Layer toolkit**: 3 dataset (`senato-corpus`, `senato-dibattito`,
+  `senato-emendamenti`) — raw→clean→mart. Bridge verso `senato_ddl` (atto_num)
+  e `senato_anagrafica` (persona_id). Pubblicati su GCS (clean + mart).
+- **Dibattito**: parser `an:debate`, una riga per intervento con oratore
+  (bridge `osr:Persona` → `senato_anagrafica`). 195k interventi tra Aula e
+  Commissione.
 
 ## Prossimi passi
 
 1. Bridge dibattito → interventi in open-politica (testo accanto ai metadati)
-2. Incrocio con italia-corpus: proposto (Senato) vs legge (vigente)
+2. Incrocio con italia-corpus: proposto (Senato) vs legge (vigente) — [F5](https://github.com/dataciviclab/senato-akn/issues/15)
 
 ## Architettura
 

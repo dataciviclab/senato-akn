@@ -14,6 +14,7 @@ from lab_connectors.duckdb.queries import (
     load_clean as _load_clean,
     load_mart_table as _load_mart_table,
     query_clean as _query_clean,
+    _query_df,
     years_from_registry,
 )
 from lab_connectors.registry import load_registry
@@ -40,3 +41,11 @@ def load_clean(slug: str, year: int = 2026):
 def query_clean(slug: str, sql: str, year: int = 2026):
     """Esegue SQL sul clean layer (cached 1h)."""
     return _query_clean(slug, sql, [year], prefix=PREFIX)
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_senato_ddl(year: int = 2026):
+    """Carica senato_ddl da GCS (dataset in open-politica)."""
+    return _query_df(
+        f"SELECT * FROM read_parquet('gs://dataciviclab-clean/senato_ddl/{year}/senato_ddl_{year}_clean.parquet')"
+    )
