@@ -34,10 +34,6 @@ on:
         description: "incremental (delta + publish) | full (corpus completo, artifact)"
         default: "incremental"
         required: false
-      legislature:
-        description: "Legislatura da processare (es. Leg19, Leg18, Leg14). Vuoto = default (Leg19)"
-        default: ""
-        required: false
 
 concurrency:
   group: senato-akn-pipeline
@@ -49,8 +45,8 @@ env:
   GCS_CLEAN: gs://dataciviclab-clean
   GCS_MART: gs://dataciviclab-mart
   YEAR: "2026"
-  # Legislature: usa input dispatch se fornito, altrimenti default Leg19
-  LEGISLATURE: ${{ inputs.legislature || 'Leg19' }}
+  # Tutte le legislature — ogni run processa tutto, l'estrazione è incrementale
+  LEGISLATURE: "Leg14 Leg15 Leg16 Leg17 Leg18 Leg19"
   # Per-legislatura: tipologie e pattern output
   TIPOLOGIE_DDLPRES: ddlpres
   TIPOLOGIE_EMEND: emend,emendc
@@ -106,26 +102,22 @@ jobs:
           echo "MODE=$MODE" >> "$GITHUB_ENV"
           echo "Mode: $MODE"
 
-      # ── Restore stato estrazione (solo incremental) ────────────────
+      # ── Restore: scarica TUTTI i per-leg file da GCS ────────────────
+      # Ogni run sovrascrive l'unificato con lo stato corrente di tutti i
+      # per-leg file. Servono tutti per avere il corpus completo.
       - name: Restore extraction state from GCS
         if: env.MODE == 'incremental' && env.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && env.GCP_SERVICE_ACCOUNT != ''
         run: |
           mkdir -p data/derived
-          for leg in ${{ env.LEGISLATURE }}; do
-            LEG_NUM="${leg#Leg}"
-            for out_pattern in "${{ env.OUT_DDLPRES_PATTERN }}" "${{ env.OUT_EMEND_PATTERN }}" "${{ env.OUT_DIBATTITO_PATTERN }}"; do
-              out="$(echo "$out_pattern" | sed "s/{leg}/$LEG_NUM/")"
-              f="$(basename "$out")"
-              m="${f%.parquet}.manifest.json"
-              for x in "$f" "$m"; do
-                if gsutil -q cp "${{ env.GCS_CLEAN }}/_derived/$x" "data/derived/$x" 2>/dev/null; then
-                  echo "state restored: $x"
-                else
-                  echo "state assente (primo run): $x"
-                fi
-              done
+          # Scarica TUTTI i per-leg file da GCS (non solo la legislatura corrente)
+          for pattern in "leg*_ddlpres_v0.parquet" "leg*_emend_emendc_v0.parquet" "leg*_resaula_sommcomm_v0.parquet" \
+                         "leg*_ddlpres_v0.manifest.json" "leg*_emend_emendc_v0.manifest.json" "leg*_resaula_sommcomm_v0.manifest.json"; do
+            for f in $(gsutil ls "${{ env.GCS_CLEAN }}/_derived/$pattern" 2>/dev/null || true); do
+              fname="$(basename "$f")"
+              gsutil -q cp "$f" "data/derived/$fname" && echo "restored: $fname"
             done
           done
+          echo "Derived files restored: $(ls data/derived/*.parquet 2>/dev/null | wc -l) parquet"
 
       # ── Git clone: clone condiviso con tutte le legislature ─────────
       - name: Git clone (tutte le legislature)

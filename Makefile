@@ -46,15 +46,10 @@ extract-all:
 		$(PYTHON) scripts/extract.py --legislatura $$leg --tipologie resaula,sommcomm --drop-zero-text; \
 	done
 
-# Unisci parquet per-legislatura in file unificati
+# Unisci parquet per-legislatura in file unificati (tutte le legislature)
 .PHONY: union
 union:
 	$(PYTHON) scripts/union_legislatures.py
-
-# Unisci solo legislature specifiche
-.PHONY: union-leg
-union-leg:
-	$(PYTHON) scripts/union_legislatures.py --legislature $(LEGISLATURE)
 
 # Full pipeline: estrai + unisci
 .PHONY: extract-union
