@@ -9,7 +9,7 @@ st.markdown("Legislature XIV–XIX — il corpus legislativo del Senato italiano
 # ── Carica marts (leggeri) ─────────────────────────────────────────
 df_corpus = load_mart("senato_corpus", "mart_per_atto")
 df_famiglie = load_mart("senato_corpus", "mart_famiglie")
-df_emend = load_mart("senato_emendamenti", "mart_emendamenti_per_fase")
+df_emend = load_mart("senato_emendamenti", "mart_emendamenti_per_atto")
 df_leg = load_mart("senato_corpus", "mart_per_legislatura")
 df_dib_sedute = load_mart("senato_dibattito", "mart_dibattito_per_seduta")
 df_oratori = load_mart("senato_dibattito", "mart_interventi_per_persona")
