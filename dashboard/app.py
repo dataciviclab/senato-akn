@@ -2,12 +2,18 @@
 """Senato AKN · Dashboard Streamlit"""
 
 import streamlit as st
+from lab_connectors.branding import apply_branding
 
 st.set_page_config(
     page_title="Senato AKN · Dashboard",
     page_icon="📜",
     layout="wide",
     initial_sidebar_state="expanded",
+)
+
+apply_branding(
+    repo_name="senato-akn",
+    repo_url="https://github.com/dataciviclab/senato-akn",
 )
 
 pages = {
@@ -29,10 +35,5 @@ pages = {
 }
 
 pg = st.navigation(pages, position="sidebar")
-
-st.sidebar.markdown("---")
-st.sidebar.caption("Dati: [Senato AKoma Ntoso](https://github.com/SenatoDellaRepubblica/AkomaNtosoBulkData)")
-st.sidebar.caption("Codice: [dataciviclab/senato-akn](https://github.com/dataciviclab/senato-akn)")
-st.sidebar.caption("[DataCivicLab](https://dataciviclab.org/) · CC BY 4.0")
 
 pg.run()
