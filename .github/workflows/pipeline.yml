@@ -102,22 +102,28 @@ jobs:
           echo "MODE=$MODE" >> "$GITHUB_ENV"
           echo "Mode: $MODE"
 
-      # ── Restore: scarica TUTTI i per-leg file da GCS ────────────────
-      # Ogni run sovrascrive l'unificato con lo stato corrente di tutti i
-      # per-leg file. Servono tutti per avere il corpus completo.
+      # ── Restore: scarica solo il file unificato + manifest Leg19 ────
+      # Non servono i per-leg delle legislature storiche — il delta viene
+      # mergiato nel file unificato esistente.
       - name: Restore extraction state from GCS
         if: env.MODE == 'incremental' && env.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && env.GCP_SERVICE_ACCOUNT != ''
         run: |
           mkdir -p data/derived
-          # Scarica TUTTI i per-leg file da GCS (non solo la legislatura corrente)
-          for pattern in "leg*_ddlpres_v0.parquet" "leg*_emend_emendc_v0.parquet" "leg*_resaula_sommcomm_v0.parquet" \
-                         "leg*_ddlpres_v0.manifest.json" "leg*_emend_emendc_v0.manifest.json" "leg*_resaula_sommcomm_v0.manifest.json"; do
+          # File unificati (base per il merge)
+          for f in "leg_unified_ddlpres_v0.parquet" "leg_unified_emend_emendc_v0.parquet" "leg_unified_resaula_sommcomm_v0.parquet"; do
+            gsutil -q cp "${{ env.GCS_CLEAN }}/_derived/$f" "data/derived/$f" 2>/dev/null && echo "restored: $f" || echo "assente: $f (primo run)"
+          done
+          # Manifest della legislatura corrente (per extraction delta)
+          for pattern in "leg*_manifest.json"; do
             for f in $(gsutil ls "${{ env.GCS_CLEAN }}/_derived/$pattern" 2>/dev/null || true); do
               fname="$(basename "$f")"
-              gsutil -q cp "$f" "data/derived/$fname" && echo "restored: $fname"
+              # Solo manifest della legislatura corrente
+              if echo "$fname" | grep -qE "$(echo '${{ env.LEGISLATURE }}' | tr ' ' '|')"; then
+                gsutil -q cp "$f" "data/derived/$fname" && echo "restored: $fname"
+              fi
             done
           done
-          echo "Derived files restored: $(ls data/derived/*.parquet 2>/dev/null | wc -l) parquet"
+          echo "Derived files: $(ls data/derived/*.parquet 2>/dev/null | wc -l) parquet"
 
       # ── Git clone: clone condiviso con tutte le legislature ─────────
       - name: Git clone (tutte le legislature)
@@ -222,21 +228,20 @@ jobs:
               "${{ env.GCS_MART }}/$slug/${{ env.YEAR }}/"
             echo "✅ $slug mart synced"
           done
-          # stato di estrazione (parquet+manifest per-legislatura) + unificati
+          # stato: solo unificati + manifest Leg19 (per il prossimo delta)
+          for out in "${{ env.OUT_UNIFIED_DDLPRES }}" "${{ env.OUT_UNIFIED_EMEND }}" "${{ env.OUT_UNIFIED_DIBATTITO }}"; do
+            f="$(basename "$out")"
+            gsutil -q cp "$out" "${{ env.GCS_CLEAN }}/_derived/$f" && echo "published: $f"
+          done
+          # Manifest della legislatura corrente (per prossimo extract incrementale)
           for leg in ${{ env.LEGISLATURE }}; do
             LEG_NUM="${leg#Leg}"
             for out_pattern in "${{ env.OUT_DDLPRES_PATTERN }}" "${{ env.OUT_EMEND_PATTERN }}" "${{ env.OUT_DIBATTITO_PATTERN }}"; do
               out="$(echo "$out_pattern" | sed "s/{leg}/$LEG_NUM/")"
               f="$(basename "$out")"
               m="${f%.parquet}.manifest.json"
-              gsutil -q cp "data/derived/$f" "${{ env.GCS_CLEAN }}/_derived/$f"
               [ -f "data/derived/$m" ] && gsutil -q cp "data/derived/$m" "${{ env.GCS_CLEAN }}/_derived/$m"
             done
-          done
-          # parquet unificati
-          for out in "${{ env.OUT_UNIFIED_DDLPRES }}" "${{ env.OUT_UNIFIED_EMEND }}" "${{ env.OUT_UNIFIED_DIBATTITO }}"; do
-            f="$(basename "$out")"
-            gsutil -q cp "$out" "${{ env.GCS_CLEAN }}/_derived/$f"
           done
           echo "✅ state published"
 
