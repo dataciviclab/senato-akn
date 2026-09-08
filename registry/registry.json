@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repo": "senato-akn",
   "source_repo": "dataciviclab/senato-akn",
-  "updated_at": "2026-09-07",
+  "updated_at": "2026-09-08",
   "datasets": [
     {
       "slug": "senato_corpus",
@@ -61,6 +61,18 @@
           "description": ""
         },
         {
+          "name": "short_title",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "famiglia",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
           "name": "work_date",
           "type": "DATE",
           "role": "dimension",
@@ -97,6 +109,78 @@
           "description": ""
         },
         {
+          "name": "FRBRsubtype",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "FRBRnumber",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "FRBRname",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "work_uri",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "expression_uri",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "manifestation_uri",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "atto_dir",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "doc_number_raw",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "path",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "proponenti",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "sezioni",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "speakers",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
           "name": "text_integrale",
           "type": "VARCHAR",
           "role": "dimension",
@@ -111,7 +195,8 @@
       "stage": "incubating",
       "mart_refs": [
         "senato_corpus__mart_per_atto",
-        "senato_corpus__mart_per_legislatura"
+        "senato_corpus__mart_per_legislatura",
+        "senato_corpus__mart_famiglie"
       ]
     },
     {
@@ -162,6 +247,12 @@
           "name": "legislatura",
           "type": "VARCHAR",
           "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "atto_num",
+          "type": "BIGINT",
+          "role": "metric",
           "description": ""
         },
         {
@@ -247,19 +338,13 @@
           "description": ""
         },
         {
+          "name": "atto_num",
+          "type": "BIGINT",
+          "role": "metric",
+          "description": ""
+        },
+        {
           "name": "emend_id",
-          "type": "VARCHAR",
-          "role": "dimension",
-          "description": ""
-        },
-        {
-          "name": "frbr_subtype",
-          "type": "VARCHAR",
-          "role": "dimension",
-          "description": ""
-        },
-        {
-          "name": "active_ref",
           "type": "VARCHAR",
           "role": "dimension",
           "description": ""
@@ -301,6 +386,48 @@
           "description": ""
         },
         {
+          "name": "FRBRsubtype",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "FRBRnumber",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "FRBRname",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "active_ref",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "active_ref_href",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "work_uri",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "doc_title",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
           "name": "text_integrale",
           "type": "VARCHAR",
           "role": "dimension",
@@ -314,11 +441,21 @@
       },
       "stage": "incubating",
       "mart_refs": [
-        "senato_emendamenti__mart_emendamenti_per_fase"
+        "senato_emendamenti__mart_emendamenti_per_atto"
       ]
     }
   ],
   "marts": [
+    {
+      "slug": "senato_corpus__mart_famiglie",
+      "dataset": "senato_corpus",
+      "table": "mart_famiglie",
+      "location": {
+        "type": "gcs",
+        "path": "gs://dataciviclab-mart/senato_corpus/2026/mart_famiglie.parquet",
+        "multi_file": false
+      }
+    },
     {
       "slug": "senato_corpus__mart_per_atto",
       "dataset": "senato_corpus",
@@ -370,12 +507,12 @@
       }
     },
     {
-      "slug": "senato_emendamenti__mart_emendamenti_per_fase",
+      "slug": "senato_emendamenti__mart_emendamenti_per_atto",
       "dataset": "senato_emendamenti",
-      "table": "mart_emendamenti_per_fase",
+      "table": "mart_emendamenti_per_atto",
       "location": {
         "type": "gcs",
-        "path": "gs://dataciviclab-mart/senato_emendamenti/2026/mart_emendamenti_per_fase.parquet",
+        "path": "gs://dataciviclab-mart/senato_emendamenti/2026/mart_emendamenti_per_atto.parquet",
         "multi_file": false
       }
     }
@@ -389,7 +526,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260907T083501Z_224574a5",
+        "run_id": "20260908T154239Z_ed34995f",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -398,17 +535,17 @@
           "mart": 100
         },
         "output_rows": {
-          "clean": 7659,
-          "mart": 7660
+          "clean": 7663,
+          "mart": 7762
         },
         "output_bytes": {
-          "raw": 24797744,
-          "clean": 20650964,
-          "mart": 50063
+          "raw": 24783156,
+          "clean": 21073647,
+          "mart": 47863
         },
-        "started_at": "2026-09-07T08:35:01.950237+00:00",
-        "finished_at": "2026-09-07T08:35:05.282868+00:00",
-        "duration_seconds": 3.333
+        "started_at": "2026-09-08T15:42:39.386239+00:00",
+        "finished_at": "2026-09-08T15:42:40.214587+00:00",
+        "duration_seconds": 0.828
       }
     },
     {
@@ -419,7 +556,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260907T083511Z_a31961f7",
+        "run_id": "20260908T154240Z_b626d34f",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -432,13 +569,13 @@
           "mart": 3610
         },
         "output_bytes": {
-          "raw": 313585379,
-          "clean": 81521019,
-          "mart": 36049
+          "raw": 312566512,
+          "clean": 81522550,
+          "mart": 35803
         },
-        "started_at": "2026-09-07T08:35:11.639662+00:00",
-        "finished_at": "2026-09-07T08:35:35.838265+00:00",
-        "duration_seconds": 24.199
+        "started_at": "2026-09-08T15:42:40.527746+00:00",
+        "finished_at": "2026-09-08T15:42:44.258630+00:00",
+        "duration_seconds": 3.731
       }
     },
     {
@@ -449,7 +586,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260906T231513Z_bcd11410",
+        "run_id": "20260908T154244Z_ec6abd4d",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -459,16 +596,16 @@
         },
         "output_rows": {
           "clean": 1003167,
-          "mart": 1614
+          "mart": 2958
         },
         "output_bytes": {
-          "raw": 186726226,
-          "clean": 110372722,
-          "mart": 22788
+          "raw": 186727868,
+          "clean": 114024653,
+          "mart": 35807
         },
-        "started_at": "2026-09-06T23:15:13.353699+00:00",
-        "finished_at": "2026-09-06T23:16:13.170481+00:00",
-        "duration_seconds": 59.817
+        "started_at": "2026-09-08T15:42:44.572418+00:00",
+        "finished_at": "2026-09-08T15:42:51.176338+00:00",
+        "duration_seconds": 6.604
       }
     }
   ],
