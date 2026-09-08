@@ -34,6 +34,10 @@ on:
         description: "incremental (delta + publish) | full (corpus completo, artifact)"
         default: "incremental"
         required: false
+      legislature:
+        description: "Legislatura da processare (es. Leg19, Leg18, Leg14). Vuoto = default (Leg19)"
+        default: ""
+        required: false
 
 concurrency:
   group: senato-akn-pipeline
@@ -45,9 +49,8 @@ env:
   GCS_CLEAN: gs://dataciviclab-clean
   GCS_MART: gs://dataciviclab-mart
   YEAR: "2026"
-  # Legislature da processare (space-separated per il loop)
-  # Solo Leg19 per il mensile — Leg14-Leg18 sono estratte una tantum
-  LEGISLATURE: "Leg19"
+  # Legislature: usa input dispatch se fornito, altrimenti default Leg19
+  LEGISLATURE: ${{ inputs.legislature || 'Leg19' }}
   # Per-legislatura: tipologie e pattern output
   TIPOLOGIE_DDLPRES: ddlpres
   TIPOLOGIE_EMEND: emend,emendc
