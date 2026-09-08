@@ -1,12 +1,7 @@
-# Pipeline — manutenzione del corpus: extract → toolkit → GCS → registry
+# Pipeline — extract → union → toolkit → GCS → registry
 #
-# Flusso:
-#   1. clone upstream (git)
-#   2. estrazione: parquet per-leg per ogni legislatura (full)
-#   3. union: tutti i per-leg → file unificati
-#   4. toolkit: clean + mart
-#   5. sync GCS: clean/mart + unified
-#   6. registry → draft PR
+# Tutta la logica è nel Makefile. Questo workflow chiama `make pipeline`
+# e poi pubblica su GCS.
 
 name: pipeline
 on:
@@ -21,11 +16,6 @@ on:
   schedule:
     - cron: "0 6 1 * *"
   workflow_dispatch:
-    inputs:
-      mode:
-        description: "incremental (default)"
-        default: "incremental"
-        required: false
 
 concurrency:
   group: senato-akn-pipeline
@@ -37,10 +27,6 @@ env:
   GCS_CLEAN: gs://dataciviclab-clean
   GCS_MART: gs://dataciviclab-mart
   YEAR: "2026"
-  LEGISLATURE: "Leg14 Leg15 Leg16 Leg17 Leg18 Leg19"
-  TIPOLOGIE_DDLPRES: ddlpres
-  TIPOLOGIE_EMEND: emend,emendc
-  TIPOLOGIE_DIBATTITO: resaula,sommcomm
 
 jobs:
   pipeline:
@@ -52,13 +38,10 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       - uses: dataciviclab/.github/actions/python-setup@main
 
       - name: GCP Auth (WIF)
-        id: gcp
         if: env.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && env.GCP_SERVICE_ACCOUNT != ''
         uses: google-github-actions/auth@v3
         with:
@@ -69,87 +52,22 @@ jobs:
         if: env.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && env.GCP_SERVICE_ACCOUNT != ''
         uses: google-github-actions/setup-gcloud@v3
 
-      # ── Git clone upstream ──────────────────────────────────────────
-      - name: Git clone (tutte le legislature)
-        run: |
-          for leg in ${{ env.LEGISLATURE }}; do
-            echo "=== Materializza $leg ==="
-            python3 -c "
-          from senato_akn.git_source import ensure_repo
-          ensure_repo('data/raw/akn', '$leg')
-          print('OK: $leg')
-          "
-          done
+      - name: Pipeline
+        run: make pipeline
 
-      # ── Extract: tutti i per-leg (full) ────────────────────────────
-      - name: Extract ddlpres
-        run: |
-          for leg in ${{ env.LEGISLATURE }}; do
-            LEG_NUM="${leg#Leg}"
-            OUT="data/derived/leg${LEG_NUM}_ddlpres_v0.parquet"
-            echo "=== Extract $leg ddlpres → $OUT ==="
-            python3 scripts/extract.py \
-              --legislatura "$leg" \
-              --tipologie "${{ env.TIPOLOGIE_DDLPRES }}" \
-              --drop-zero-text \
-              --out "$OUT"
-          done
-
-      - name: Extract emend+emendc
-        run: |
-          for leg in ${{ env.LEGISLATURE }}; do
-            LEG_NUM="${leg#Leg}"
-            OUT="data/derived/leg${LEG_NUM}_emend_emendc_v0.parquet"
-            echo "=== Extract $leg emend+emendc → $OUT ==="
-            python3 scripts/extract.py \
-              --legislatura "$leg" \
-              --tipologie "${{ env.TIPOLOGIE_EMEND }}" \
-              --drop-zero-text \
-              --out "$OUT"
-          done
-
-      - name: Extract dibattito
-        run: |
-          for leg in ${{ env.LEGISLATURE }}; do
-            LEG_NUM="${leg#Leg}"
-            OUT="data/derived/leg${LEG_NUM}_resaula_sommcomm_v0.parquet"
-            echo "=== Extract $leg dibattito → $OUT ==="
-            python3 scripts/extract.py \
-              --legislatura "$leg" \
-              --tipologie "${{ env.TIPOLOGIE_DIBATTITO }}" \
-              --drop-zero-text \
-              --out "$OUT"
-          done
-
-      # ── Union: tutti i per-leg → unificati ─────────────────────────
-      - name: Union legislature
-        run: |
-          python3 scripts/union_legislatures.py
-
-      # ── Toolkit: clean + mart ──────────────────────────────────────
-      - name: Run toolkit
-        run: |
-          for cfg in datasets/*/dataset.yml; do
-            echo "=== $cfg ==="
-            python3 -m toolkit.cli.app run --config "$cfg"
-          done
-
-      # ── Publish: clean/mart + unified → GCS ────────────────────────
       - name: Publish to GCS
         if: env.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && env.GCP_SERVICE_ACCOUNT != ''
         run: |
           for slug in $(ls out/data/clean/ 2>/dev/null); do
-            gsutil -m rsync -r -x ".*/_(run|validate)/.*|.*/metadata\.json$" \
-              "out/data/clean/$slug/${{ env.YEAR }}/" \
+            gsutil -m rsync -r "out/data/clean/$slug/${{ env.YEAR }}/" \
               "${{ env.GCS_CLEAN }}/$slug/${{ env.YEAR }}/"
           done
           for slug in $(ls out/data/mart/ 2>/dev/null); do
-            gsutil -m rsync -r -x ".*/_(run|validate)/.*|.*/metadata\.json$" \
-              "out/data/mart/$slug/${{ env.YEAR }}/" \
+            gsutil -m rsync -r "out/data/mart/$slug/${{ env.YEAR }}/" \
               "${{ env.GCS_MART }}/$slug/${{ env.YEAR }}/"
           done
-          for f in "leg_unified_ddlpres_v0.parquet" "leg_unified_emend_emendc_v0.parquet" "leg_unified_resaula_sommcomm_v0.parquet"; do
-            [ -f "data/derived/$f" ] && gsutil -q cp "data/derived/$f" "${{ env.GCS_CLEAN }}/_derived/$f"
+          for f in data/derived/leg_unified_*.parquet; do
+            [ -f "$f" ] && gsutil -q cp "$f" "${{ env.GCS_CLEAN }}/_derived/$(basename $f)"
           done
 
       - name: Registry update PR

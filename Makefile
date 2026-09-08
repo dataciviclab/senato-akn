@@ -116,6 +116,18 @@ ci: install
 	$(VENV_PYTHON) scripts/extract.py --repo-dir /tmp/senato-smoke \
 	  --limit 1 --out /tmp/senato-ci-test.parquet
 
+# --- Pipeline completa (CI chiama questo) ---
+
+.PHONY: git-clone
+git-clone:
+	@for leg in $(LEGISLATURE); do \
+		echo "=== Materializza $$leg ==="; \
+		$(PYTHON) -c "from senato_akn.git_source import ensure_repo; ensure_repo('data/raw/akn', '$$leg')"; \
+	done
+
+.PHONY: pipeline
+pipeline: git-clone extract-all union run-all
+
 # --- Pulizia ---
 
 .PHONY: clean
