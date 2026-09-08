@@ -526,7 +526,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260908T161745Z_9c41a8bd",
+        "run_id": "20260908T182857Z_79e2e1b0",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -536,16 +536,16 @@
         },
         "output_rows": {
           "clean": 7663,
-          "mart": 7762
+          "mart": 7756
         },
         "output_bytes": {
-          "raw": 24783156,
-          "clean": 21073647,
-          "mart": 48170
+          "raw": 21569584,
+          "clean": 21131980,
+          "mart": 48030
         },
-        "started_at": "2026-09-08T16:17:45.311880+00:00",
-        "finished_at": "2026-09-08T16:17:46.222673+00:00",
-        "duration_seconds": 0.911
+        "started_at": "2026-09-08T18:28:57.497320+00:00",
+        "finished_at": "2026-09-08T18:28:58.380595+00:00",
+        "duration_seconds": 0.883
       }
     },
     {
@@ -556,7 +556,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260908T161746Z_a5028925",
+        "run_id": "20260908T182858Z_26ff9939",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -569,13 +569,13 @@
           "mart": 3610
         },
         "output_bytes": {
-          "raw": 312566512,
-          "clean": 81522550,
-          "mart": 35794
+          "raw": 253252124,
+          "clean": 81623671,
+          "mart": 35819
         },
-        "started_at": "2026-09-08T16:17:46.616285+00:00",
-        "finished_at": "2026-09-08T16:17:50.827368+00:00",
-        "duration_seconds": 4.211
+        "started_at": "2026-09-08T18:28:58.770260+00:00",
+        "finished_at": "2026-09-08T18:29:03.901865+00:00",
+        "duration_seconds": 5.132
       }
     },
     {
@@ -586,7 +586,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260908T161751Z_f0c2a436",
+        "run_id": "20260908T182904Z_e2573407",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -599,13 +599,13 @@
           "mart": 2958
         },
         "output_bytes": {
-          "raw": 186727868,
-          "clean": 114024653,
-          "mart": 35796
+          "raw": 140052499,
+          "clean": 113981909,
+          "mart": 35670
         },
-        "started_at": "2026-09-08T16:17:51.225374+00:00",
-        "finished_at": "2026-09-08T16:17:58.904783+00:00",
-        "duration_seconds": 7.679
+        "started_at": "2026-09-08T18:29:04.288285+00:00",
+        "finished_at": "2026-09-08T18:29:10.617865+00:00",
+        "duration_seconds": 6.33
       }
     }
   ],
