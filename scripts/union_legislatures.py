@@ -33,15 +33,24 @@ logger = logging.getLogger("union_legislatures")
 
 DERIVED_DIR = Path(__file__).resolve().parents[1] / "data" / "derived"
 
-# Mappatura tipologia → pattern dei file parquet ( wildcard {leg} )
+# Mappatura tipologia → pattern dei file parquet (solo per-leg, no unificati)
 TIPOLOGIE_PATTERNS = {
     "corpus": [
-        "leg*_ddlpres_v0.parquet",
-        "leg*_ddlmess_v0.parquet",
-        "leg*_ddlcomm_v0.parquet",
+        "leg[0-9]_ddlpres_v0.parquet",
+        "leg[0-9]_ddlmess_v0.parquet",
+        "leg[0-9]_ddlcomm_v0.parquet",
+        "leg[0-9][0-9]_ddlpres_v0.parquet",
+        "leg[0-9][0-9]_ddlmess_v0.parquet",
+        "leg[0-9][0-9]_ddlcomm_v0.parquet",
     ],
-    "emend": ["leg*_emend_emendc_v0.parquet"],
-    "dibattito": ["leg*_resaula_sommcomm_v0.parquet"],
+    "emend": [
+        "leg[0-9]_emend_emendc_v0.parquet",
+        "leg[0-9][0-9]_emend_emendc_v0.parquet",
+    ],
+    "dibattito": [
+        "leg[0-9]_resaula_sommcomm_v0.parquet",
+        "leg[0-9][0-9]_resaula_sommcomm_v0.parquet",
+    ],
 }
 
 # Output unificati
