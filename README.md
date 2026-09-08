@@ -12,10 +12,10 @@ struttura e contenuto dei testi.
 | | |
 |---|---|
 | **Fonte** | SenatoDellaRepubblica/AkomaNtosoBulkData |
-| **Legislatura** | Leg19 (2022-oggi) |
-| **Documenti estratti** | ddlpres (1.095) · emend (18.563) · emendc (43.046) · ddlmess (214) · ddlcomm (162) |
-| **Dibattito** | resaula (990) · sommcomm (7.348) — parser `an:debate` |
-| **Totale Leg19** | 68.114 file XML, ~786 MB |
+| **Legislature** | Leg14–Leg19 (2001-oggi) |
+| **Documenti estratti** | ddlpres (7.654) · emend (1.002.476) · emendc ( vari) · ddlmess (952) · ddlcomm (699) |
+| **Dibattito** | resaula (1.753) · sommcomm (13.865) — parser `an:debate` |
+| **Totale** | ~1.183.000 file XML, ~14 GB su disco |
 
 ## Finding principale
 
@@ -71,7 +71,6 @@ pip install -e ".[dev]"
 python3 scripts/extract.py              # Leg19/ddlpres (clone git + parse)
 python3 scripts/extract.py --tipologie ddlpres,emend,emendc,ddlmess,ddlcomm  # full parsabile
 python3 scripts/extract.py --incremental   # delta: solo i file cambiati (manifest + snapshot)
-python3 scripts/build_summaries.py      # aggregazioni per famiglia e mese
 ```
 
 ## Partecipa
@@ -84,28 +83,36 @@ python3 scripts/build_summaries.py      # aggregazioni per famiglia e mese
 - **Ingest via git** (`git_source`): clone `blob:none` + sparse della
   legislatura. La GitHub tree API tronca oltre ~100k entry — l'estrazione
   HTTP scopriva solo ~46% dei file; con git il corpus è completo.
-- **Leg19**: 149.059 file XML (~2,1 GB). Parsate: ddlpres (1.978), emend
-  (44.396), emendc (93.636), ddlmess (435), ddlcomm (273), resaula (990),
-  sommcomm (7.351). Corpus completo.
-- **Estrazione**: clone ~3,4 min (una tantum), fetch delta ~11 s, parsing
-  da disco ~1 ms/file. Delta incrementale via `--incremental` (manifest
-  path→sha + merge del parquet).
+- **Multi-legislatura**: Leg14–Leg19 estratte e unificate. Clone condiviso
+  con `sparse-checkout add` per aggiungere legislature senza perdere le
+  precedenti. Leg14–Leg15 hanno solo emendamenti; Leg16 ha 14 ddlpres;
+  Leg17–Leg19 hanno il corpus completo.
+- **Estrazione**: clone ~5-6 min (una tantum per tutte le legislature),
+  fetch delta ~11 s, parsing ~1 ms/file. Delta incrementale via
+  `--incremental` (manifest path→sha + merge del parquet).
 - **Layer toolkit**: 3 dataset (`senato-corpus`, `senato-dibattito`,
   `senato-emendamenti`) — raw→clean→mart. Bridge verso `senato_ddl` (atto_num)
   e `senato_anagrafica` (persona_id). Pubblicati su GCS (clean + mart).
 - **Dibattito**: parser `an:debate`, una riga per intervento con oratore
-  (bridge `osr:Persona` → `senato_anagrafica`). 195k interventi tra Aula e
-  Commissione.
+  (bridge `osr:Persona` → `senato_anagrafica`). ~360k interventi tra Aula e
+  Commissione (Leg17–Leg19).
+- **Namespace**: parser supporta CSD02 (Leg13–Leg16) e CSD03 (Leg17+).
 
 ## Prossimi passi
 
 1. Bridge dibattito → interventi in open-politica (testo accanto ai metadati)
 2. Incrocio con italia-corpus: proposto (Senato) vs legge (vigente) — [F5](https://github.com/dataciviclab/senato-akn/issues/15)
 
+## Strategia di estrazione
+
+- **Una tantum**: Leg14–Leg18 (storiche, non cambiano) — estratte e salvate
+- **Mensile**: Leg19 (attiva, nuovi atti ogni mese) — estrazione incrementale
+- **Pipeline**: solo Leg19 nel loop mensile; le legislature storiche restano fisse
+
 ## Architettura
 
 ```
-scripts/          # extract.py, build_summaries.py
+scripts/          # extract.py, union_legislatures.py
 senato_akn/       # core: extract, git_source, parser, classifier, summarize
 data/raw/akn/     # clone git upstream (gitignored) — il "download" è via pack
 data/derived/     # parquet + manifest generati (gitignored, GitHub Artifact)

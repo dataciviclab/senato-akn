@@ -1,5 +1,5 @@
 streamlit>=1.61
-plotly>=5.18
+duckdb>=1.5.3
 altair>=6.2
 pandas>=3.0
-lab-connectors[duckdb] @ git+https://github.com/dataciviclab/lab-connectors.git
+dataciviclab-toolkit @ git+https://github.com/dataciviclab/toolkit.git

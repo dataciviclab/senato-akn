@@ -1,19 +1,13 @@
--- mart_famiglie.sql — distribuzione per famiglia legislativa
+-- mart_famiglie.sql — aggregazione per famiglia legislativa
 --
--- Ogni documento può stare in più famiglie: si fa explode della colonna
--- ';'-separata (unnest). Il finding chiave del progetto è la concentrazione
--- di testo in poche famiglie (es. decreti: 6.99% atti, ~30% del testo).
+-- Una riga per famiglia. Conta documenti e somma testo.
 
 SELECT
     famiglia,
-    count(*)                                                       AS n_documenti,
-    sum(text_len)                                                  AS testo_totale,
-    round(100.0 * sum(text_len) / NULLIF((SELECT sum(text_len)
-                                          FROM clean_input), 0), 2) AS pct_testo
-FROM (
-    SELECT text_len, unnest(string_split(famiglia, ';')) AS famiglia
-    FROM clean_input
-    WHERE famiglia != ''
-)
+    COUNT(*) AS n_documenti,
+    SUM(text_len) AS testo_totale,
+    ROUND(100.0 * SUM(text_len) / (SELECT SUM(text_len) FROM clean_input), 1) AS pct_testo
+FROM clean_input
+WHERE famiglia IS NOT NULL AND famiglia != ''
 GROUP BY famiglia
-ORDER BY testo_totale DESC
+ORDER BY n_documenti DESC

@@ -1,49 +1,49 @@
 # Stato del progetto
 
-Data: 2026-08-16
+Data: 2026-09-08
 Slug: `senato-akn`
-Stato: `public-exploration`
+Stato: `active`
 Kind: `corpus-project`
 
 ## Scope attuale
 
 - fonte: `SenatoDellaRepubblica/AkomaNtosoBulkData` (clone git, `git_source`)
-- legislatura: `Leg19` (149.059 file XML, ~2,1 GB)
-- tipologie parsate: `ddlpres`, `emend`, `emendc`, `ddlmess`, `ddlcomm`
-  (63.082 file) — `resaula`/`sommcomm` (dibattito) in attesa del parser `an:debate`
+- legislature: `Leg14`–`Leg19` (multi-legislatura)
+- tipologie parsate: `ddlpres`, `emend`, `emendc`, `ddlmess`, `ddlcomm`, `resaula`, `sommcomm`
 - unità di record: documento
 
 ## Artefatti canonici
 
 Script:
 - `scripts/extract.py` (estrazione da git, `--incremental` per il delta)
-- `scripts/build_summaries.py` (aggregazioni famiglia/mese)
+- `scripts/union_legislatures.py` (unione parquet per-legislatura)
 
 Derived (gitignored, GitHub Artifact):
-- `data/derived/leg19_<tipi>_v0.parquet` (parquet zstd + `.manifest.json`)
+- `data/derived/leg{leg}_{tipi}_v0.parquet` (parquet zstd + `.manifest.json`)
+- `data/derived/leg_unified_{tipi}_v0.parquet` (unificati multi-legislatura)
 - `data/raw/akn/` — clone git upstream (la "cache" dei file XML)
 
 Toolkit:
-- `datasets/senato-corpus/` — layer raw→clean→mart (raw: parquet derivato)
+- `datasets/senato-corpus/` — layer raw→clean→mart
+- `datasets/senato-dibattito/` — layer raw→clean→mart
+- `datasets/senato-emendamenti/` — layer raw→clean→mart
+
+## Dashboard
+
+7 pagine Streamlit:
+- Panoramica, Famiglie, Emendamenti, Sedute, Oratori, Scheda Atto, SQL
+- Fonte dati: lab_connectors.duckdb.queries (path resolution GCS/locale)
+- Cache: `@st.cache_data(ttl=3600)` su tutte le query
 
 ## Cosa regge
 
-- ingest completa del corpus via git (la GitHub tree API tronca oltre ~100k
-  entry: l'estrazione HTTP scopriva solo ~46% dei file)
-- ddlpres completo: **1.978 righe** (era 1.059 con la discovery troncata)
-- delta incrementale (`--incremental`): manifest path→sha + merge col parquet
-  precedente — funziona su runner effimero (lo stato è il manifest, ~94 KB)
-- layer toolkit `senato_corpus`: raw qs=100, clean qs=95, mart qs=100 (2/2),
-  1.889 atti con testo (ddlpres completo, drop zero-testo nel sync)
+- ingest completa del corpus via git (la GitHub tree API tronca oltre ~100k entry)
+- multi-legislatura: Leg14–Leg19 con union automatica
+- layer toolkit per 3 dataset: raw→clean→mart
+- bridge a senato_ddl (atto_num → fase) e senato_anagrafica (senatore_id → persona_id)
 
-## Finding
+## Prossimi passi
 
-Poche famiglie di testi concentrano una quota sproporzionata del testo:
-`decreto_like` ~33% del testo, `bilancio` ~8% — coi numeri del corpus completo.
-
-## Prossimo passo
-
-- workflow `sync` incrementale (publish parquet+manifest)
-- GCS publish + registry (decisione credenziali)
-- parser `an:debate` per i resoconti (resaula, sommcomm)
-- incrocio con italia-corpus: proposto (Senato) vs legge (vigente)
+- Validare i fix eseguendo la pipeline completa (extract → clean → mart)
+- Materializzare nodi mancanti nel graph (senatore, norma)
+- Estendere coverage di `urn_normattiva` in open-politica

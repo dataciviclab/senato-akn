@@ -84,4 +84,4 @@ with col2:
         hide_index=True,
     )
 
-st.caption("Dati: Senato della Repubblica · Akoma Ntoso Bulk Data · XIX Legislatura · CC BY 4.0")
+st.caption("Dati: Senato della Repubblica · Akoma Ntoso Bulk Data · Leg14-Leg19 · CC BY 4.0")

@@ -13,25 +13,56 @@ install: $(VENV)
 
 # --- Estrazione (sorgente: clone git upstream, git_source) ---
 
+LEGISLATURA ?= Leg19
+LEGISLATURE ?= Leg14 Leg15 Leg16 Leg17 Leg18 Leg19
+TIPOLOGIE_ALL = ddlpres,emend,emendc,ddlmess,ddlcomm,resaula,sommcomm
+
 .PHONY: extract
 extract:
-	$(PYTHON) scripts/extract.py --drop-zero-text
+	$(PYTHON) scripts/extract.py --legislatura $(LEGISLATURA) --drop-zero-text
 
 # Delta: processa solo i file cambiati (manifest + snapshot accanto a --out)
 .PHONY: extract-incremental
 extract-incremental:
-	$(PYTHON) scripts/extract.py --drop-zero-text --incremental
+	$(PYTHON) scripts/extract.py --legislatura $(LEGISLATURA) --drop-zero-text --incremental
 
-# Full: le tipologie con parser (incl. emendc; resaula/sommcomm fuori finché
-# non c'è il parser an:debate)
+# Full: tutte le tipologie con parser per una legislatura
 .PHONY: extract-full
 extract-full:
-	$(PYTHON) scripts/extract.py --tipologie ddlpres,emend,emendc,ddlmess,ddlcomm \
+	$(PYTHON) scripts/extract.py --legislatura $(LEGISLATURA) --tipologie $(TIPOLOGIE_ALL) \
 		--drop-zero-text
+
+# Estrai tutte le legislature disponibili (sequenziale)
+.PHONY: extract-all
+extract-all:
+	@for leg in $(LEGISLATURE); do \
+		echo "=== Estrazione $$leg (atti: ddlpres,ddlmess,ddlcomm) ==="; \
+		$(PYTHON) scripts/extract.py --legislatura $$leg --tipologie ddlpres --drop-zero-text; \
+		$(PYTHON) scripts/extract.py --legislatura $$leg --tipologie ddlmess --drop-zero-text; \
+		$(PYTHON) scripts/extract.py --legislatura $$leg --tipologie ddlcomm --drop-zero-text; \
+		echo "=== Estrazione $$leg (emend+emendc) ==="; \
+		$(PYTHON) scripts/extract.py --legislatura $$leg --tipologie emend,emendc --drop-zero-text; \
+		echo "=== Estrazione $$leg (dibattito) ==="; \
+		$(PYTHON) scripts/extract.py --legislatura $$leg --tipologie resaula,sommcomm --drop-zero-text; \
+	done
+
+# Unisci parquet per-legislatura in file unificati
+.PHONY: union
+union:
+	$(PYTHON) scripts/union_legislatures.py
+
+# Unisci solo legislature specifiche
+.PHONY: union-leg
+union-leg:
+	$(PYTHON) scripts/union_legislatures.py --legislature $(LEGISLATURE)
+
+# Full pipeline: estrai + unisci
+.PHONY: extract-union
+extract-union: extract-all union
 
 .PHONY: summarize
 summarize:
-	$(PYTHON) scripts/build_summaries.py
+	@echo "build_summaries.py rimosso — le aggregazioni sono nei mart SQL"
 
 # --- Layer toolkit (raw local_file -> clean -> mart) ---
 
@@ -39,13 +70,31 @@ summarize:
 run-senato-corpus:
 	$(PYTHON) -m toolkit.cli.app run --config datasets/senato-corpus/dataset.yml
 
+.PHONY: run-senato-dibattito
+run-senato-dibattito:
+	$(PYTHON) -m toolkit.cli.app run --config datasets/senato-dibattito/dataset.yml
+
 .PHONY: run-senato-emendamenti
 run-senato-emendamenti:
 	$(PYTHON) -m toolkit.cli.app run --config datasets/senato-emendamenti/dataset.yml
 
+.PHONY: run-all
+run-all: run-senato-corpus run-senato-dibattito run-senato-emendamenti
+
 .PHONY: check-senato-corpus
 check-senato-corpus:
 	$(PYTHON) -m toolkit.cli.app run preflight --config datasets/senato-corpus/dataset.yml
+
+.PHONY: check-senato-dibattito
+check-senato-dibattito:
+	$(PYTHON) -m toolkit.cli.app run preflight --config datasets/senato-dibattito/dataset.yml
+
+.PHONY: check-senato-emendamenti
+check-senato-emendamenti:
+	$(PYTHON) -m toolkit.cli.app run preflight --config datasets/senato-emendamenti/dataset.yml
+
+.PHONY: check-all
+check-all: check-senato-corpus check-senato-dibattito check-senato-emendamenti
 
 .PHONY: all
 all: extract summarize
@@ -71,8 +120,6 @@ ci: install
 	git -C /tmp/senato-smoke -c user.email=t -c user.name=t commit -qm smoke
 	$(VENV_PYTHON) scripts/extract.py --repo-dir /tmp/senato-smoke \
 	  --limit 1 --out /tmp/senato-ci-test.parquet
-	$(VENV_PYTHON) scripts/build_summaries.py --input /tmp/senato-ci-test.parquet \
-	  --out-families /tmp/senato-ci-families.csv --out-monthly /tmp/senato-ci-monthly.csv
 
 # --- Pulizia ---
 

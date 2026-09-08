@@ -1,16 +1,16 @@
-# Emendamenti del Senato (XIX leg.) — emend Aula + emendc Commissione
+# Emendamenti del Senato (Leg14–Leg19) — emend Aula + emendc Commissione
 root: "../../out"
 schema_version: 1
 
 dataset:
   name: "senato_emendamenti"
   source_id: "senato_akn"
-  description: "Ogni emendamento presentato nella XIX legislatura (Aula `emend` e Commissione `emendc`), dal corpus Akoma Ntoso. Un documento per riga, con la fase dell'atto a cui si riferisce (S.NNN) — bridge verso senato_ddl."
+  description: "Ogni emendamento presentato nelle legislature Leg14–Leg19 (Aula `emend` e Commissione `emendc`), dal corpus Akoma Ntoso. Un documento per riga, con la fase dell'atto a cui si riferisce (S.NNN) — bridge verso senato_ddl."
   tags: [politica, senato, emendamenti, iter, intensita]
   category: politica
   years: [2026]
   time_coverage:
-    start_year: 2022
+    start_year: 2001
     end_year: 2026
 
 raw:
@@ -19,8 +19,8 @@ raw:
     - name: "emendamenti_parquet"
       type: "local_file"
       args:
-        path: "../../data/derived/leg19_emend_emendc_v0.parquet"
-        filename: "leg19_emend_emendc_v0.parquet"
+        path: "../../data/derived/leg_unified_emend_emendc_v0.parquet"
+        filename: "leg_unified_emend_emendc_v0.parquet"
       primary: true
 
 clean:
@@ -38,7 +38,6 @@ clean:
 
 mart:
   tables:
-    # Intensità emendativa per atto (S.NNN) — bridge verso senato_ddl
     - name: "mart_emendamenti_per_atto"
       sql: "sql/mart_per_atto.sql"
   required_tables:
@@ -46,8 +45,8 @@ mart:
   validate:
     table_rules:
       mart_emendamenti_per_atto:
-        required_columns: [fase, n_emend, testo_totale, n_aula, n_commissione]
-        primary_key: [fase]
+        required_columns: [atto_num, n_emend, testo_totale, n_aula, n_commissione]
+        primary_key: [atto_num]
         min_rows: 100
 
 validation:

@@ -1,51 +1,55 @@
-"""Fonti dati per la dashboard Senato AKN.
-
-Wrappa lab_connectors.duckdb.queries con @st.cache_data.
-Nessun prefix — i dati sono pubblicati alla radice del bucket.
-"""
+"""Fonti dati per la dashboard Senato AKN."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 import streamlit as st
-
 from lab_connectors.duckdb.queries import (
     load_clean as _load_clean,
-    load_mart_table as _load_mart_table,
-    query_clean as _query_clean,
-    _query_df,
-    years_from_registry,
 )
-from lab_connectors.registry import load_registry
+from lab_connectors.duckdb.queries import (
+    load_mart_table as _load_mart_table,
+)
+from lab_connectors.duckdb.queries import (
+    query_clean as _query_clean,
+)
 
-PREFIX = ""
-
-_registry = load_registry(Path(__file__).parent.parent / "registry" / "registry.json")
-YEARS = years_from_registry(_registry)
+WORKSPACE = Path(__file__).resolve().parent.parent.parent
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_mart(slug: str, table: str, year: int = 2026):
-    """Carica un singolo mart table da GCS (cached 1h)."""
-    return _load_mart_table(slug, table, year, prefix=PREFIX)
+    return _load_mart_table(slug, table, year)
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_clean(slug: str, year: int = 2026):
-    """Carica il clean layer di un dataset (cached 1h)."""
-    return _load_clean(slug, [year], prefix=PREFIX)
+    return _load_clean(slug, [year])
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def query_clean(slug: str, sql: str, year: int = 2026):
-    """Esegue SQL sul clean layer (cached 1h)."""
-    return _query_clean(slug, sql, [year], prefix=PREFIX)
+    return _query_clean(slug, sql, [year])
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_ddl():
+    """Carica tutti i DDL clean da open-politica (Leg13-19)."""
+    import duckdb
+    files = sorted(WORKSPACE.glob(
+        "open-politica/out/data/clean/senato_ddl/*/senato_ddl_*_clean.parquet"))
+    if not files:
+        import pandas as pd
+        return pd.DataFrame()
+    globs = ", ".join(f"'{f}'" for f in files)
+    con = duckdb.connect(":memory:")
+    df = con.execute(f"SELECT * FROM read_parquet([{globs}])").fetchdf()
+    con.close()
+    return df
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_senato_ddl(year: int = 2026):
-    """Carica senato_ddl da GCS (dataset in open-politica)."""
-    return _query_df(
-        f"SELECT * FROM read_parquet('gs://dataciviclab-clean/senato_ddl/{year}/senato_ddl_{year}_clean.parquet')"
-    )
+    """Compat: carica DDL come faceva main (singolo anno)."""
+    return load_ddl()

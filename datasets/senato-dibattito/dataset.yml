@@ -1,4 +1,4 @@
-# Dibattito parlamentare (XIX leg.) — resoconti Aula (resaula) + Commissione (sommcomm)
+# Dibattito parlamentare (Leg14–Leg19) — resoconti Aula (resaula) + Commissione (sommcomm)
 #
 # Il "chi parla e cosa dice" del Senato: ogni intervento (speech) con oratore.
 # Parser an:debate (debateBody → debateSection → speech by=#pNNNN → from).
@@ -9,12 +9,12 @@ schema_version: 1
 dataset:
   name: "senato_dibattito"
   source_id: "senato_akn"
-  description: "Ogni intervento parlamentare nella XIX legislatura (Aula `resaula` e Commissione `sommcomm`), dal corpus Akoma Ntoso. Una riga = un intervento, con oratore (bridge osr:Persona → senato_anagrafica) e testo."
+  description: "Ogni intervento parlamentare nelle legislature Leg14–Leg19 (Aula `resaula` e Commissione `sommcomm`), dal corpus Akoma Ntoso. Una riga = un intervento, con oratore (bridge osr:Persona → senato_anagrafica) e testo."
   tags: [politica, senato, dibattito, interventi, resoconti, oratori]
   category: politica
   years: [2026]
   time_coverage:
-    start_year: 2022
+    start_year: 2015
     end_year: 2026
 
 raw:
@@ -23,8 +23,8 @@ raw:
     - name: "dibattito_parquet"
       type: "local_file"
       args:
-        path: "../../data/derived/leg19_resaula_sommcomm_v0.parquet"
-        filename: "leg19_resaula_sommcomm_v0.parquet"
+        path: "../../data/derived/leg_unified_resaula_sommcomm_v0.parquet"
+        filename: "leg_unified_resaula_sommcomm_v0.parquet"
       primary: true
 
 clean:
@@ -32,7 +32,7 @@ clean:
   read:
     source: auto
     mode: latest
-  required_columns: [tipologia, data_seduta, document_id, path, senatore_id, persona_id, nome_oratore, text_len]
+  required_columns: [tipologia, data_seduta, document_id, path, legislatura, senatore_id, persona_id, nome_oratore, ruolo, text_len]
   validate:
     # Transizione raw→clean: cambio di granularità INTENZIONALE (documenti →
     # interventi, via UNNEST). Le 18 colonne rimosse sono i campi a livello
@@ -47,12 +47,12 @@ clean:
 
 mart:
   tables:
-    # Chi parla e quanto: per oratore — bridge verso senato_anagrafica
     - name: "mart_interventi_per_persona"
       sql: "sql/mart_interventi_per_persona.sql"
-    # Quanto si discute: per seduta
     - name: "mart_dibattito_per_seduta"
       sql: "sql/mart_dibattito_per_seduta.sql"
+    - name: "mart_dib_per_atto"
+      sql: "sql/mart_dib_per_atto.sql"
   required_tables:
     - "mart_interventi_per_persona"
   validate:
@@ -64,6 +64,10 @@ mart:
       mart_dibattito_per_seduta:
         required_columns: [data_seduta, n_interventi, n_oratori, testo_totale]
         primary_key: [data_seduta]
+        min_rows: 100
+      mart_dib_per_atto:
+        required_columns: [atto_num, n_interventi, n_oratori, testo_totale]
+        primary_key: [atto_num]
         min_rows: 100
 
 validation:
