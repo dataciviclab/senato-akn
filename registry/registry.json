@@ -526,7 +526,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260908T182857Z_79e2e1b0",
+        "run_id": "20260908T192836Z_2d46de86",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -539,13 +539,13 @@
           "mart": 7756
         },
         "output_bytes": {
-          "raw": 21569584,
+          "raw": 21569586,
           "clean": 21131980,
-          "mart": 48030
+          "mart": 48005
         },
-        "started_at": "2026-09-08T18:28:57.497320+00:00",
-        "finished_at": "2026-09-08T18:28:58.380595+00:00",
-        "duration_seconds": 0.883
+        "started_at": "2026-09-08T19:28:36.164637+00:00",
+        "finished_at": "2026-09-08T19:28:37.269322+00:00",
+        "duration_seconds": 1.105
       }
     },
     {
@@ -556,7 +556,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260908T182858Z_26ff9939",
+        "run_id": "20260908T192837Z_fa7dd8bc",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -571,11 +571,11 @@
         "output_bytes": {
           "raw": 253252124,
           "clean": 81623671,
-          "mart": 35819
+          "mart": 35715
         },
-        "started_at": "2026-09-08T18:28:58.770260+00:00",
-        "finished_at": "2026-09-08T18:29:03.901865+00:00",
-        "duration_seconds": 5.132
+        "started_at": "2026-09-08T19:28:37.633184+00:00",
+        "finished_at": "2026-09-08T19:28:43.392493+00:00",
+        "duration_seconds": 5.759
       }
     },
     {
@@ -586,7 +586,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260908T182904Z_e2573407",
+        "run_id": "20260908T192843Z_314cb93f",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -599,13 +599,13 @@
           "mart": 2958
         },
         "output_bytes": {
-          "raw": 140052499,
+          "raw": 140052501,
           "clean": 113981909,
-          "mart": 35670
+          "mart": 35563
         },
-        "started_at": "2026-09-08T18:29:04.288285+00:00",
-        "finished_at": "2026-09-08T18:29:10.617865+00:00",
-        "duration_seconds": 6.33
+        "started_at": "2026-09-08T19:28:43.755100+00:00",
+        "finished_at": "2026-09-08T19:28:51.075783+00:00",
+        "duration_seconds": 7.321
       }
     }
   ],
