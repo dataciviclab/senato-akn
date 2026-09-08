@@ -13,6 +13,10 @@ on:
       - "Makefile"
       - "pyproject.toml"
       - "requirements.txt"
+    paths-ignore:
+      - "registry/registry.json"
+      - "notes/**"
+      - "*.md"
   schedule:
     - cron: "0 6 1 * *"
   workflow_dispatch:
