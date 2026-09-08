@@ -14,23 +14,29 @@ if df_fam.empty:
     st.warning("Nessun dato disponibile.")
     st.stop()
 
-# ── Treemap ─────────────────────────────────────────────────────────
+# ── Distribuzione per famiglia ────────────────────────────────────
 st.subheader("Distribuzione per famiglia")
 
-try:
-    import plotly.express as px
+top_n = st.slider("Top famiglie", 5, 30, 15, key="top_fam_famiglie")
+df_top = df_fam.nlargest(top_n, "testo_totale")
 
-    fig = px.treemap(
-        df_fam,
-        path=["famiglia"],
-        values="testo_totale",
-        color="n_documenti",
-        title="Peso testuale per famiglia (colore = n. documenti)",
+import altair as alt
+
+chart = (
+    alt.Chart(df_top)
+    .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
+    .encode(
+        y=alt.Y("famiglia:N", title="", sort="-x"),
+        x=alt.X("testo_totale:Q", title="Testo (caratteri)", axis=alt.Axis(format="~s")),
+        tooltip=[
+            "famiglia",
+            alt.Tooltip("n_documenti:Q", title="Documenti", format=","),
+            alt.Tooltip("testo_totale:Q", title="Testo", format=","),
+        ],
     )
-    fig.update_layout(height=500)
-    st.plotly_chart(fig, width="stretch")
-except ImportError:
-    st.bar_chart(df_fam.set_index("famiglia")["testo_totale"])
+    .properties(height=max(200, top_n * 25))
+)
+st.altair_chart(chart, width="stretch")
 
 # ── Confronto conteggio vs peso ────────────────────────────────────
 st.subheader("Conteggio vs Peso testuale")
