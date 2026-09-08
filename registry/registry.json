@@ -526,7 +526,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260908T154239Z_ed34995f",
+        "run_id": "20260908T161745Z_9c41a8bd",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -541,11 +541,11 @@
         "output_bytes": {
           "raw": 24783156,
           "clean": 21073647,
-          "mart": 47863
+          "mart": 48170
         },
-        "started_at": "2026-09-08T15:42:39.386239+00:00",
-        "finished_at": "2026-09-08T15:42:40.214587+00:00",
-        "duration_seconds": 0.828
+        "started_at": "2026-09-08T16:17:45.311880+00:00",
+        "finished_at": "2026-09-08T16:17:46.222673+00:00",
+        "duration_seconds": 0.911
       }
     },
     {
@@ -556,7 +556,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260908T154240Z_b626d34f",
+        "run_id": "20260908T161746Z_a5028925",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -571,11 +571,11 @@
         "output_bytes": {
           "raw": 312566512,
           "clean": 81522550,
-          "mart": 35803
+          "mart": 35794
         },
-        "started_at": "2026-09-08T15:42:40.527746+00:00",
-        "finished_at": "2026-09-08T15:42:44.258630+00:00",
-        "duration_seconds": 3.731
+        "started_at": "2026-09-08T16:17:46.616285+00:00",
+        "finished_at": "2026-09-08T16:17:50.827368+00:00",
+        "duration_seconds": 4.211
       }
     },
     {
@@ -586,7 +586,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260908T154244Z_ec6abd4d",
+        "run_id": "20260908T161751Z_f0c2a436",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -601,11 +601,11 @@
         "output_bytes": {
           "raw": 186727868,
           "clean": 114024653,
-          "mart": 35807
+          "mart": 35796
         },
-        "started_at": "2026-09-08T15:42:44.572418+00:00",
-        "finished_at": "2026-09-08T15:42:51.176338+00:00",
-        "duration_seconds": 6.604
+        "started_at": "2026-09-08T16:17:51.225374+00:00",
+        "finished_at": "2026-09-08T16:17:58.904783+00:00",
+        "duration_seconds": 7.679
       }
     }
   ],
