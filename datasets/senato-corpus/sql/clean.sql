@@ -26,7 +26,7 @@ SELECT
     normalize_string(expression_uri)                              AS expression_uri,
     normalize_string(manifestation_uri)                           AS manifestation_uri,
     normalize_string(atto_dir)                                    AS atto_dir,
-    normalize_string(doc_number)                                  AS doc_number,
+    normalize_string(doc_number) AS doc_number_raw,
     normalize_string(path)                                        AS path,
     proponenti,
     sezioni,
