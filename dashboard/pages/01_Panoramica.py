@@ -1,41 +1,47 @@
 """Panoramica — KPI del corpus legislativo del Senato."""
 
 import streamlit as st
-from lab_connectors.formatters import fmt_num
-from sources import load_clean, load_mart
+from sources import load_mart
 
-st.title("📊 Panoramica Corpus Senato")
-st.markdown("Legislatura XIX — il corpus legislativo del Senato italiano da Akoma Ntoso.")
+st.title("Panoramica Corpus Senato")
+st.markdown("Legislature XIV–XIX — il corpus legislativo del Senato italiano da Akoma Ntoso.")
 
-# ── Carica dati ─────────────────────────────────────────────────────
-df_corpus = load_clean("senato_corpus")
-df_dibattito = load_clean("senato_dibattito")
-df_emendamenti = load_clean("senato_emendamenti")
+# ── Carica marts (leggeri) ─────────────────────────────────────────
+df_corpus = load_mart("senato_corpus", "mart_per_atto")
 df_famiglie = load_mart("senato_corpus", "mart_famiglie")
+df_emend = load_mart("senato_emendamenti", "mart_emendamenti_per_fase")
+df_leg = load_mart("senato_corpus", "mart_per_legislatura")
+df_dib_sedute = load_mart("senato_dibattito", "mart_dibattito_per_seduta")
+df_oratori = load_mart("senato_dibattito", "mart_interventi_per_persona")
 
 # ── KPI ─────────────────────────────────────────────────────────────
-n_doc = len(df_corpus)
-n_discorsi = len(df_dibattito)
-n_emend = len(df_emendamenti)
-testo_totale = df_corpus["text_len"].sum()
+n_doc = int(df_corpus["n_documenti"].sum())
+testo_totale = int(df_corpus["testo_totale"].sum())
+n_emend = int(df_emend["n_emend"].sum()) if not df_emend.empty else 0
+n_discorsi = int(df_dib_sedute["n_interventi"].sum()) if not df_dib_sedute.empty else 0
+n_oratori = len(df_oratori) if not df_oratori.empty else 0
 
-k1, k2, k3, k4 = st.columns(4)
-k1.metric("📄 Documenti", fmt_num(n_doc))
-k2.metric("🎤 Discorsi", fmt_num(n_discorsi))
-k3.metric("✏️ Emendamenti", fmt_num(n_emend))
-k4.metric("📝 Testo totale", f"{testo_totale/1e6:,.1f} M caratteri")
+k1, k2, k3, k4, k5 = st.columns(5)
+k1.metric("Documenti", f"{n_doc:,}")
+k2.metric("Emendamenti", f"{n_emend:,}")
+k3.metric("Discorsi", f"{n_discorsi:,}")
+k4.metric("Oratori", f"{n_oratori:,}")
+k5.metric("Testo", f"{testo_totale/1e6:,.1f} M")
 
 st.markdown("---")
 
 # ── Distribuzione per famiglia ──────────────────────────────────────
+top_n_fam = st.slider("Top famiglie", 5, 30, 15, key="top_fam")
+df_top_fam = df_famiglie.nlargest(top_n_fam, "n_documenti")
+
 col_left, col_right = st.columns(2)
 
 with col_left:
     st.subheader("Documenti per famiglia")
-    if not df_famiglie.empty:
+    if not df_top_fam.empty:
         import altair as alt
         chart = (
-            alt.Chart(df_famiglie)
+            alt.Chart(df_top_fam)
             .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
             .encode(
                 x=alt.X("n_documenti:Q", title="N. documenti"),
@@ -49,9 +55,9 @@ with col_left:
 
 with col_right:
     st.subheader("Peso testuale per famiglia")
-    if not df_famiglie.empty:
+    if not df_top_fam.empty:
         chart2 = (
-            alt.Chart(df_famiglie)
+            alt.Chart(df_top_fam)
             .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3, color="#f59e0b")
             .encode(
                 x=alt.X("testo_totale:Q", title="Testo (caratteri)", axis=alt.Axis(format="~s")),
@@ -81,8 +87,8 @@ if not df_famiglie.empty:
         c2.metric("Testo medio/bilancio", f"{testo_medio:,.0f} caratteri")
         c3.metric("Peso vs media", f"{peso_relativo:.1f}x")
 
-        import pandas as pd
         import altair as alt
+        import pandas as pd
 
         df_confronto = pd.DataFrame({
             "Categoria": ["Bilanci", "Media generale"],
@@ -105,4 +111,4 @@ if not df_famiglie.empty:
         )
         st.altair_chart(chart_confronto, width='stretch')
 
-st.caption("Dati: Senato della Repubblica · Akoma Ntoso Bulk Data · XIX Legislatura · CC BY 4.0")
+st.caption("Dati: Senato della Repubblica · Akoma Ntoso Bulk Data · CC BY 4.0")

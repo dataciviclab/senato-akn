@@ -12,7 +12,7 @@ source:
   license: CC BY 3.0
 
 scope:
-  legislature: Leg19
+  legislature: [Leg14, Leg15, Leg16, Leg17, Leg18, Leg19]
   document_types:
     - ddlpres        # disegni di legge presentati ✅
     - ddlmess        # messaggi Camera-Senato ✅

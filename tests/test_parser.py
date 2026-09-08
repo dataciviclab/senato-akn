@@ -3,7 +3,6 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
-
 from senato_akn.parser import (
     _amendment_act_ref,
     _amendment_text,
@@ -149,6 +148,65 @@ class TestParseXml:
 
 
 # ---------------------------------------------------------------------------
+# Test per namespace CSD02 (Leg13–Leg16)
+# ---------------------------------------------------------------------------
+
+
+class TestNamespaceCSD02:
+    """Test che il parser supporta il namespace CSD02 (documenti Leg16-)."""
+
+    def test_body_text_csd02(self) -> None:
+        """CSD02: body_text deve estrarre testo dal body."""
+        xml = """<?xml version="1.0" encoding="utf-8"?>
+        <an:akomaNtoso xmlns:an="http://docs.oasis-open.org/legaldocml/ns/akn/3.0/CSD02">
+            <an:bill>
+                <an:body>
+                    <an:p>Art. 1. Disposizioni generali.</an:p>
+                    <an:p>Il presente testo disciplina la materia.</an:p>
+                </an:body>
+            </an:bill>
+        </an:akomaNtoso>"""
+        result = parse_xml(xml)
+        assert result["text_len"] > 0
+        assert "Art. 1" in result["text_integrale"]
+        assert result["doc_type"] == "act"
+
+    def test_parse_xml_csd02(self) -> None:
+        """CSD02: parse_xml deve funzionare con documenti completi."""
+        xml = """<?xml version="1.0" encoding="utf-8"?>
+        <an:akomaNtoso xmlns:an="http://docs.oasis-open.org/legaldocml/ns/akn/3.0/CSD02">
+            <an:bill>
+                <an:meta>
+                    <an:identification source="#redattore">
+                        <an:FRBRWork>
+                            <an:FRBRuri value="it/Ddl/2010-01-01/1234"/>
+                            <an:FRBRdate date="2010-01-01"/>
+                        </an:FRBRWork>
+                        <an:FRBRExpression>
+                            <an:FRBRuri value="it/Ddl/2010-01-01/1234/it@2010-01-01"/>
+                            <an:FRBRdate date="2010-01-01"/>
+                        </an:FRBRExpression>
+                    </an:identification>
+                </an:meta>
+                <an:coverPage>
+                    <an:docTitle>Disposizioni sulla trasparenza</an:docTitle>
+                </an:coverPage>
+                <an:body>
+                    <an:p>Art. 1. Finalità.</an:p>
+                    <an:p>La presente legge disciplina la trasparenza.</an:p>
+                </an:body>
+            </an:bill>
+        </an:akomaNtoso>"""
+        result = parse_xml(xml, path="Atto001234/ddlpres/test.akn.xml")
+        assert result["legislatura"] == "Leg19"
+        assert result["doc_type"] == "act"
+        assert result["doc_title"] == "Disposizioni sulla trasparenza"
+        assert result["text_len"] > 0
+        assert result["atto_dir"] == "Atto001234"
+        assert "test" in result["document_id"]
+
+
+# ---------------------------------------------------------------------------
 # Test per documenti <an:amendment> (emendamenti)
 # ---------------------------------------------------------------------------
 
@@ -174,8 +232,9 @@ class TestParseAmendment:
 
     def test_active_ref(self, xml_bytes: bytes) -> None:
         root = ET.fromstring(xml_bytes)
-        ref = _amendment_act_ref(root)
-        assert "Congiunzione" in ref
+        showAs, href = _amendment_act_ref(root)
+        assert "Congiunzione" in showAs
+        assert "http" in href
 
     def test_parse_xml_returns_amendment_fields(self, xml_bytes: bytes) -> None:
         result = parse_xml(xml_bytes, path="Atto00055286/emend/test.akn.xml")
@@ -192,7 +251,8 @@ class TestParseAmendment:
         result = parse_xml(path.read_bytes(), path=FIXTURE_PATH)
         assert result["doc_type"] == "act"
         assert result["text_len"] > 0
-        assert result["FRBRsubtype"] == ""  # solo per amendment
+        assert result["FRBRsubtype"] == "DDLPRES"  # ora estratto per tutti i tipi
+        assert result["proponenti"] != []  # ora estratto per gli atti
 
 
 # ---------------------------------------------------------------------------
@@ -296,3 +356,130 @@ class TestParseDebate:
         assert result["doc_type"] == "act"
         assert result["speakers_count"] == 0
         assert result["speakers"] == []
+
+
+# ---------------------------------------------------------------------------
+# Test per nuove funzionalità parser (proponenti, activeRef href, ruoli, sezioni)
+# ---------------------------------------------------------------------------
+
+
+ACT_XML_WITH_PROPONENTS = """\
+<an:akomaNtoso xmlns:an="http://docs.oasis-open.org/legaldocml/ns/akn/3.0/CSD03">
+  <an:act>
+    <an:meta>
+      <an:identification source="#redattore">
+        <an:FRBRWork>
+          <an:FRBRthis value="http://dati.senato.it/osr/Ddl/2026-01-01/1/main"/>
+          <an:FRBRuri value="http://dati.senato.it/osr/Ddl/2026-01-01/1"/>
+          <an:FRBRdate date="2026-01-01" name="presentazione"/>
+          <an:FRBRauthor href="#senato"/>
+          <an:FRBRsubtype value="DDLPRES"/>
+          <an:FRBRnumber value="42"/>
+          <an:FRBRname value="disegno di legge"/>
+        </an:FRBRWork>
+        <an:FRBRExpression>
+          <an:FRBRuri value="http://dati.senato.it/osr/Ddl/2026-01-01/1/ita@"/>
+          <an:FRBRdate date="2026-01-01" name="presentazione"/>
+        </an:FRBRExpression>
+        <an:FRBRManifestation>
+          <an:FRBRuri value="http://dati.senato.it/osr/Ddl/2026-01-01/1/ita@/main.xml"/>
+          <an:FRBRdate date="2026-01-01" name="presentazione"/>
+        </an:FRBRManifestation>
+      </an:identification>
+    </an:meta>
+    <an:coverPage>
+      <an:docType>DISEGNO DI LEGGE</an:docType>
+      <an:docNumber>N. 42</an:docNumber>
+      <an:docProponent showAs="BIANCHI" refersTo="#w1"/>
+      <an:docProponent showAs="Ministro della Difesa" refersTo="#r1"/>
+    </an:coverPage>
+    <an:body title="DISEGNO DI LEGGE">
+      <an:article>
+        <an:body>
+          <an:p>Disposizioni sulla sicurezza.</an:p>
+        </an:body>
+      </an:article>
+    </an:body>
+  </an:act>
+</an:akomaNtoso>
+"""
+
+AMENDMENT_XML_WITH_HREF = """\
+<an:akomaNtoso xmlns:an="http://docs.oasis-open.org/legaldocml/ns/akn/3.0/CSD03">
+  <an:amendment>
+    <an:meta>
+      <an:identification source="#redattore">
+        <an:FRBRWork>
+          <an:FRBRthis value="http://dati.senato.it/osr/Emend/2026-01-01/1/main"/>
+          <an:FRBRuri value="http://dati.senato.it/osr/Emend/2026-01-01/1"/>
+          <an:FRBRdate date="2026-01-01" name="presentazione"/>
+          <an:FRBRauthor href="#senato"/>
+          <an:FRBRsubtype value="EMEND"/>
+          <an:FRBRnumber value="E1.100"/>
+          <an:FRBRname value="emendamento"/>
+        </an:FRBRWork>
+        <an:FRBRExpression>
+          <an:FRBRuri value="http://dati.senato.it/osr/Emend/2026-01-01/1/ita@"/>
+          <an:FRBRdate date="2026-01-01" name="presentazione"/>
+        </an:FRBRExpression>
+        <an:FRBRManifestation>
+          <an:FRBRuri value="http://dati.senato.it/osr/Emend/2026-01-01/1/ita@/main.xml"/>
+          <an:FRBRdate date="2026-01-01" name="presentazione"/>
+        </an:FRBRManifestation>
+      </an:identification>
+    </an:meta>
+    <an:references source="#redattore">
+      <an:activeRef id="ar1" href="http://dati.senato.it/DDL/19/42" showAs="DDL 42"/>
+    </an:references>
+    <an:preface>
+      <an:p>Modifica all'articolo 1.</an:p>
+    </an:preface>
+    <an:amendmentBody>
+      <an:amendmentContent>
+        <an:p>Dopo la parola 'sicurezza' inserire 'e difesa'.</an:p>
+      </an:amendmentContent>
+    </an:amendmentBody>
+  </an:amendment>
+</an:akomaNtoso>
+"""
+
+
+class TestParserEnhanced:
+    """Test per le nuove funzionalità del parser."""
+
+    def test_proponenti_extracted(self) -> None:
+        result = parse_xml(ACT_XML_WITH_PROPONENTS, path="Atto00000042/ddlpres/test.xml")
+        assert result["doc_type"] == "act"
+        assert len(result["proponenti"]) == 2
+        assert result["proponenti"][0]["showAs"] == "BIANCHI"
+        assert result["proponenti"][1]["showAs"] == "Ministro della Difesa"
+
+    def test_doc_number_extracted(self) -> None:
+        result = parse_xml(ACT_XML_WITH_PROPONENTS, path="Atto00000042/ddlpres/test.xml")
+        assert result["doc_number"] == "N. 42"
+
+    def test_frbr_for_act(self) -> None:
+        result = parse_xml(ACT_XML_WITH_PROPONENTS, path="Atto00000042/ddlpres/test.xml")
+        assert result["FRBRsubtype"] == "DDLPRES"
+        assert result["FRBRnumber"] == "42"
+        assert result["FRBRname"] == "disegno di legge"
+
+    def test_active_ref_href(self) -> None:
+        result = parse_xml(AMENDMENT_XML_WITH_HREF, path="Atto00000042/emend/test.xml")
+        assert result["doc_type"] == "amendment"
+        assert result["active_ref"] == "DDL 42"
+        assert result["active_ref_href"] == "http://dati.senato.it/DDL/19/42"
+
+    def test_speaker_role(self) -> None:
+        result = parse_xml(DEBATE_XML, path="Leg19/Atto00000001/resaula/test.xml")
+        # Gli oratori nel test XML hanno @as="#senatore"
+        for speaker in result["speakers"]:
+            assert "ruolo" in speaker
+            # Il ruolo dovrebbe essere estratto (anche se vuoto nel test XML minimale)
+
+    def test_debate_sections(self) -> None:
+        result = parse_xml(DEBATE_XML, path="Leg19/Atto00000001/resaula/test.xml")
+        assert "sezioni" in result
+        assert len(result["sezioni"]) == 1
+        assert result["sezioni"][0]["name"] == "Seduta"
+        assert result["sezioni"][0]["speeches_count"] == 3

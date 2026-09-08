@@ -5,7 +5,7 @@ from lab_connectors.formatters import fmt_num
 from sources import load_mart
 
 st.title("🎤 Chi Parla")
-st.markdown("250 senatori nel corpus dibattito — chi parla di più, dove, e quanto dice.")
+st.markdown("Chi parla di più, dove, e quanto dice.")
 
 # ── Carica dati ─────────────────────────────────────────────────────
 df = load_mart("senato_dibattito", "mart_interventi_per_persona")
@@ -71,4 +71,4 @@ st.dataframe(
     hide_index=True,
 )
 
-st.caption("Dati: Senato della Repubblica · Akoma Ntoso Bulk Data · XIX Legislatura · CC BY 4.0")
+st.caption("Dati: Senato della Repubblica · Akoma Ntoso Bulk Data · Leg14-Leg19 · CC BY 4.0")

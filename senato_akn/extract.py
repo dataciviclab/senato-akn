@@ -19,9 +19,9 @@ from typing import Any
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from senato_akn.classifier import classify
 from senato_akn.git_source import list_entries, read_local
 from senato_akn.parser import parse_xml
+from senato_akn.classifier import classify
 
 logger = logging.getLogger("senato_akn.extract")
 
@@ -41,21 +41,14 @@ def _extract_tipologia(path: str) -> str:
     return ""
 
 
-def _document_famiglie(row: dict[str, Any]) -> str:
-    """Famiglie legislative del documento, da ``doc_title``/``short_title``.
-
-    Il classifier può assegnare più famiglie a un documento: vengono
-    serializzate in una stringa ``;``-separata, leggibile dal layer tabellare.
-    """
-    title = row.get("doc_title") or row.get("short_title") or ""
-    return ";".join(classify(title))
-
-
 def _enrich_row(row: dict[str, Any], path: str, legislatura: str) -> dict[str, Any]:
     """Aggiunge i campi derivati (legislatura, tipologia, famiglia) a una riga."""
     row["legislatura"] = legislatura
     row["tipologia"] = _extract_tipologia(path)
-    row["famiglia"] = _document_famiglie(row)
+    # Classifica in famiglie legislative
+    title = row.get("doc_title") or row.get("short_title") or ""
+    famiglie = classify(title)
+    row["famiglia"] = ";".join(famiglie) if famiglie else ""
     return row
 
 

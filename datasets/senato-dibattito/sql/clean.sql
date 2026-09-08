@@ -28,9 +28,16 @@ SELECT
     TRY_CAST(work_date AS DATE)               AS data_seduta,
     normalize_string(document_id)             AS document_id,
     normalize_string(path)                    AS path,
+    normalize_string(legislatura)             AS legislatura,
+    TRY_CAST(
+        CASE WHEN NULLIF(regexp_extract(path, 'Atto(\d+)', 1), '') IS NOT NULL
+             THEN regexp_extract(path, 'Atto(\d+)', 1)
+        END AS BIGINT
+    )                                         AS atto_num,
     TRY_CAST(s.unnest.senatore_id AS BIGINT)  AS senatore_id,
     normalize_string(s.unnest.persona_id)     AS persona_id,
     normalize_string(s.unnest.nome)           AS nome_oratore,
+    normalize_string(s.unnest.ruolo)          AS ruolo,
     s.ordinality                              AS ordine_intervento,
     TRY_CAST(length(s.unnest."text") AS BIGINT) AS text_len,
     s.unnest."text"                           AS text_intervento

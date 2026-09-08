@@ -1,7 +1,7 @@
 """Famiglie — Analisi per famiglia legislativa."""
 
 import streamlit as st
-from sources import load_mart
+from sources import load_mart, query_clean
 
 st.title("📁 Famiglie Legislative")
 st.markdown("Distribuzione degli atti per famiglia legislativa — conteggio vs peso testuale.")
@@ -19,6 +19,7 @@ st.subheader("Distribuzione per famiglia")
 
 try:
     import plotly.express as px
+
     fig = px.treemap(
         df_fam,
         path=["famiglia"],
@@ -27,7 +28,7 @@ try:
         title="Peso testuale per famiglia (colore = n. documenti)",
     )
     fig.update_layout(height=500)
-    st.plotly_chart(fig, width='stretch')
+    st.plotly_chart(fig, width="stretch")
 except ImportError:
     st.bar_chart(df_fam.set_index("famiglia")["testo_totale"])
 
@@ -38,12 +39,14 @@ col1, col2 = st.columns(2)
 with col1:
     st.markdown("**Per numero di documenti**")
     st.dataframe(
-        df_fam[["famiglia", "n_documenti", "pct_testo"]].rename(columns={
-            "famiglia": "Famiglia",
-            "n_documenti": "Documenti",
-            "pct_testo": "% Testo",
-        }),
-        width='stretch',
+        df_fam[["famiglia", "n_documenti", "pct_testo"]].rename(
+            columns={
+                "famiglia": "Famiglia",
+                "n_documenti": "Documenti",
+                "pct_testo": "% Testo",
+            }
+        ),
+        width="stretch",
         hide_index=True,
     )
 
@@ -51,12 +54,14 @@ with col2:
     st.markdown("**Per peso testuale**")
     df_sorted = df_fam.sort_values("testo_totale", ascending=False)
     st.dataframe(
-        df_sorted[["famiglia", "testo_totale", "n_documenti"]].rename(columns={
-            "famiglia": "Famiglia",
-            "testo_totale": "Testo (caratteri)",
-            "n_documenti": "Documenti",
-        }),
-        width='stretch',
+        df_sorted[["famiglia", "testo_totale", "n_documenti"]].rename(
+            columns={
+                "famiglia": "Famiglia",
+                "testo_totale": "Testo (caratteri)",
+                "n_documenti": "Documenti",
+            }
+        ),
+        width="stretch",
         hide_index=True,
     )
 
@@ -65,24 +70,25 @@ st.markdown("---")
 st.subheader("Top atti per famiglia")
 
 famiglia_sel = st.selectbox("Famiglia", df_fam["famiglia"].tolist())
-df_filtered = df_per_atto[df_per_atto["famiglie"].str.contains(famiglia_sel, na=False)]
+
+df_per_atto = query_clean(
+    "senato_corpus",
+    "SELECT atto_num, tipologia, doc_title, text_len, articles_count, famiglia "
+    "FROM clean_input WHERE famiglia IS NOT NULL AND famiglia != ''",
+)
+df_filtered = df_per_atto[df_per_atto["famiglia"].str.contains(famiglia_sel, na=False)]
 
 if not df_filtered.empty:
-    st.dataframe(
-        df_filtered[["atto_num", "tipologie", "n_documenti", "testo_totale", "articoli_totali"]]
-        .sort_values("testo_totale", ascending=False)
+    df_show = (
+        df_filtered[["atto_num", "tipologia", "doc_title", "text_len", "articles_count"]]
         .head(20)
-        .rename(columns={
-            "atto_num": "Atto",
-            "tipologie": "Tipologia",
-            "n_documenti": "Documenti",
-            "testo_totale": "Testo",
-            "articoli_totali": "Articoli",
-        }),
-        width='stretch',
-        hide_index=True,
+        .copy()
     )
+    df_show.columns = ["Atto", "Tipo", "Titolo", "Testo", "Articoli"]
+    df_show["Titolo"] = df_show["Titolo"].str[:60]
+    st.dataframe(df_show, width="stretch", hide_index=True)
+
 else:
     st.info("Nessun atto trovato per questa famiglia.")
 
-st.caption("Dati: Senato della Repubblica · Akoma Ntoso Bulk Data · XIX Legislatura · CC BY 4.0")
+st.caption("Dati: Senato della Repubblica · Akoma Ntoso Bulk Data · Leg14-Leg19 · CC BY 4.0")

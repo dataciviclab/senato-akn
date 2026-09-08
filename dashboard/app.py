@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""
-Senato AKN · Dashboard Streamlit
-Il corpus legislativo del Senato italiano — documenti, discorsi, emendamenti.
-"""
+"""Senato AKN · Dashboard Streamlit"""
 
 import streamlit as st
 

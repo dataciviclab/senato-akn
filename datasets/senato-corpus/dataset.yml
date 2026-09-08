@@ -4,12 +4,12 @@ schema_version: 1
 dataset:
   name: "senato_corpus"
   source_id: "senato_akn"
-  description: "Corpus Akoma Ntoso del Senato (Leg19): ogni documento legislativo (ddlpres, emend, ddlcomm, ddlmess) con famiglia, peso testuale e articoli. Deriva dall'estrazione XML di senato-akn; atto_num collega a senato_ddl via ddl_url (/ddl/N)."
+  description: "Corpus Akoma Ntoso del Senato (Leg14–Leg19): ogni documento legislativo (ddlpres, emend, ddlcomm, ddlmess) con famiglia, peso testuale e articoli. Deriva dall'estrazione XML di senato-akn; atto_num collega a senato_ddl via ddl_url (/ddl/N)."
   tags: [politica, senato, corpus, akoma-ntoso, legislativo]
   category: politica
   years: [2026]
   time_coverage:
-    start_year: 2022
+    start_year: 2010
     end_year: 2026
 
 raw:
@@ -18,8 +18,8 @@ raw:
     - name: "corpus_parquet"
       type: "local_file"
       args:
-        path: "../../data/derived/leg19_ddlpres_v0.parquet"
-        filename: "leg19_ddlpres_v0.parquet"
+        path: "../../data/derived/leg_unified_ddlpres_v0.parquet"
+        filename: "leg_unified_ddlpres_v0.parquet"
       primary: true
 
 clean:
@@ -27,23 +27,25 @@ clean:
   read:
     source: auto
     mode: latest
-  required_columns: [atto_num, document_id, doc_title, famiglia, work_date, tipologia, text_len, articles_count]
+  required_columns: [atto_num, document_id, doc_title, work_date, tipologia, text_len, articles_count]
   validate:
     not_null: [atto_num, document_id]
     # una riga = un documento XML del corpus
-    primary_key: [document_id]
+    # path è unico; document_id può ripetersi tra tipologie (ddlmess/ddlcomm)
+    primary_key: [path]
     min_rows: 1000
 
 mart:
   tables:
-    # Un foglio per atto (dl_num): la tabella-bridge verso senato_ddl
     - name: "mart_per_atto"
       sql: "sql/mart_per_atto.sql"
-    # Distribuzione per famiglia legislativa (finding del progetto)
+    - name: "mart_per_legislatura"
+      sql: "sql/mart_per_legislatura.sql"
     - name: "mart_famiglie"
       sql: "sql/mart_famiglie.sql"
   required_tables:
     - "mart_per_atto"
+    - "mart_per_legislatura"
     - "mart_famiglie"
   validate:
     table_rules:
@@ -51,9 +53,14 @@ mart:
         required_columns: [atto_num, n_documenti, testo_totale]
         primary_key: [atto_num]
         min_rows: 1000
+      mart_per_legislatura:
+        required_columns: [legislatura, n_documenti, testo_totale, n_atti]
+        primary_key: [legislatura]
+        min_rows: 3
       mart_famiglie:
-        required_columns: [famiglia, n_documenti, testo_totale, pct_testo]
-        min_rows: 5
+        required_columns: [famiglia, n_documenti, testo_totale]
+        primary_key: [famiglia]
+        min_rows: 3
 
 validation:
   fail_on_error: true

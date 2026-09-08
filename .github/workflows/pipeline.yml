@@ -45,14 +45,22 @@ env:
   GCS_CLEAN: gs://dataciviclab-clean
   GCS_MART: gs://dataciviclab-mart
   YEAR: "2026"
-  LEGISLATURA: Leg19
-  # Parquet derivati per dataset (raw local_file). Un nuovo dataset qui:
-  # parquet + manifest, e il loop extract/sync lo prende.
+  # Legislature da processare (space-separated per il loop)
+  # Solo Leg19 per il mensile — Leg14-Leg18 sono estratte una tantum
+  LEGISLATURE: "Leg19"
+  # Per-legislatura: tipologie e pattern output
+  TIPOLOGIE_DDLPRES: ddlpres
+  TIPOLOGIE_EMEND: emend,emendc
+  TIPOLOGIE_DIBATTITO: resaula,sommcomm
   FULL_TIPOLOGIE: ddlpres,emend,emendc,ddlmess,ddlcomm,resaula,sommcomm
-  OUT_DDLPRES: data/derived/leg19_ddlpres_v0.parquet
-  OUT_EMEND: data/derived/leg19_emend_emendc_v0.parquet
-  OUT_DIBATTITO: data/derived/leg19_resaula_sommcomm_v0.parquet
-  FULL_OUT: data/derived/leg19_full_v0.parquet
+  # Pattern output (placeholder {leg} sostituito nel loop)
+  OUT_DDLPRES_PATTERN: "data/derived/leg{leg}_ddlpres_v0.parquet"
+  OUT_EMEND_PATTERN: "data/derived/leg{leg}_emend_emendc_v0.parquet"
+  OUT_DIBATTITO_PATTERN: "data/derived/leg{leg}_resaula_sommcomm_v0.parquet"
+  # Output unificati (dopo union)
+  OUT_UNIFIED_DDLPRES: data/derived/leg_unified_ddlpres_v0.parquet
+  OUT_UNIFIED_EMEND: data/derived/leg_unified_emend_emendc_v0.parquet
+  OUT_UNIFIED_DIBATTITO: data/derived/leg_unified_resaula_sommcomm_v0.parquet
 
 jobs:
   pipeline:
@@ -100,57 +108,100 @@ jobs:
         if: env.MODE == 'incremental' && env.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && env.GCP_SERVICE_ACCOUNT != ''
         run: |
           mkdir -p data/derived
-          for out in "${{ env.OUT_DDLPRES }}" "${{ env.OUT_EMEND }}" "${{ env.OUT_DIBATTITO }}"; do
-            f="$(basename "$out")"
-            m="${f%.parquet}.manifest.json"
-            for x in "$f" "$m"; do
-              if gsutil -q cp "${{ env.GCS_CLEAN }}/_derived/$x" "data/derived/$x" 2>/dev/null; then
-                echo "state restored: $x"
-              else
-                echo "state assente (primo run): $x"
-              fi
+          for leg in ${{ env.LEGISLATURE }}; do
+            LEG_NUM="${leg#Leg}"
+            for out_pattern in "${{ env.OUT_DDLPRES_PATTERN }}" "${{ env.OUT_EMEND_PATTERN }}" "${{ env.OUT_DIBATTITO_PATTERN }}"; do
+              out="$(echo "$out_pattern" | sed "s/{leg}/$LEG_NUM/")"
+              f="$(basename "$out")"
+              m="${f%.parquet}.manifest.json"
+              for x in "$f" "$m"; do
+                if gsutil -q cp "${{ env.GCS_CLEAN }}/_derived/$x" "data/derived/$x" 2>/dev/null; then
+                  echo "state restored: $x"
+                else
+                  echo "state assente (primo run): $x"
+                fi
+              done
             done
           done
 
-      # ── Estrazione (incrementale per dataset) ──────────────────────
+      # ── Git clone: clone condiviso con tutte le legislature ─────────
+      - name: Git clone (tutte le legislature)
+        run: |
+          for leg in ${{ env.LEGISLATURE }}; do
+            echo "=== Materializza $leg ==="
+            python3 -c "
+          from senato_akn.git_source import ensure_repo
+          ensure_repo('data/raw/akn', '$leg')
+          print('OK: $leg materializzata')
+          "
+          done
+
+      # ── Estrazione (incrementale per dataset, loop legislature) ────
       - name: Extract ddlpres
         if: env.MODE == 'incremental'
         run: |
-          python3 scripts/extract.py \
-            --legislatura "${{ env.LEGISLATURA }}" \
-            --tipologie ddlpres \
-            --drop-zero-text \
-            --out "${{ env.OUT_DDLPRES }}" \
-            --incremental
+          for leg in ${{ env.LEGISLATURE }}; do
+            LEG_NUM="${leg#Leg}"
+            OUT="$(echo "${{ env.OUT_DDLPRES_PATTERN }}" | sed "s/{leg}/$LEG_NUM/")"
+            echo "=== Extract $leg ddlpres → $OUT ==="
+            python3 scripts/extract.py \
+              --legislatura "$leg" \
+              --tipologie "${{ env.TIPOLOGIE_DDLPRES }}" \
+              --drop-zero-text \
+              --out "$OUT" \
+              --incremental
+          done
 
       - name: Extract emend+emendc
         if: env.MODE == 'incremental'
         run: |
-          python3 scripts/extract.py \
-            --legislatura "${{ env.LEGISLATURA }}" \
-            --tipologie emend,emendc \
-            --drop-zero-text \
-            --out "${{ env.OUT_EMEND }}" \
-            --incremental
+          for leg in ${{ env.LEGISLATURE }}; do
+            LEG_NUM="${leg#Leg}"
+            OUT="$(echo "${{ env.OUT_EMEND_PATTERN }}" | sed "s/{leg}/$LEG_NUM/")"
+            echo "=== Extract $leg emend+emendc → $OUT ==="
+            python3 scripts/extract.py \
+              --legislatura "$leg" \
+              --tipologie "${{ env.TIPOLOGIE_EMEND }}" \
+              --drop-zero-text \
+              --out "$OUT" \
+              --incremental
+          done
 
       - name: Extract dibattito (resaula+sommcomm)
         if: env.MODE == 'incremental'
         run: |
-          python3 scripts/extract.py \
-            --legislatura "${{ env.LEGISLATURA }}" \
-            --tipologie resaula,sommcomm \
-            --drop-zero-text \
-            --out "${{ env.OUT_DIBATTITO }}" \
-            --incremental
+          for leg in ${{ env.LEGISLATURE }}; do
+            LEG_NUM="${leg#Leg}"
+            OUT="$(echo "${{ env.OUT_DIBATTITO_PATTERN }}" | sed "s/{leg}/$LEG_NUM/")"
+            echo "=== Extract $leg dibattito → $OUT ==="
+            python3 scripts/extract.py \
+              --legislatura "$leg" \
+              --tipologie "${{ env.TIPOLOGIE_DIBATTITO }}" \
+              --drop-zero-text \
+              --out "$OUT" \
+              --incremental
+          done
 
       - name: Extract full corpus (tipologie parsate)
         if: env.MODE == 'full'
         run: |
-          python3 scripts/extract.py \
-            --legislatura "${{ env.LEGISLATURA }}" \
-            --tipologie "${{ env.FULL_TIPOLOGIE }}" \
-            --drop-zero-text \
-            --out "${{ env.FULL_OUT }}"
+          for leg in ${{ env.LEGISLATURE }}; do
+            LEG_NUM="${leg#Leg}"
+            OUT="data/derived/leg${LEG_NUM}_full_v0.parquet"
+            echo "=== Extract $leg full → $OUT ==="
+            python3 scripts/extract.py \
+              --legislatura "$leg" \
+              --tipologie "${{ env.FULL_TIPOLOGIE }}" \
+              --drop-zero-text \
+              --out "$OUT"
+          done
+
+      # ── Union: unisci per-legislatura in file unificati ────────────
+      - name: Union legislature
+        if: env.MODE == 'incremental'
+        run: |
+          python3 scripts/union_legislatures.py \
+            --legislature "$(echo '${{ env.LEGISLATURE }}' | tr ' ' ',')"
 
       # ── Layer toolkit: run su TUTTI i dataset ──────────────────────
       - name: Run toolkit
@@ -177,12 +228,21 @@ jobs:
               "${{ env.GCS_MART }}/$slug/${{ env.YEAR }}/"
             echo "✅ $slug mart synced"
           done
-          # stato di estrazione (parquet+manifest) per il delta su runner fresco
-          for out in "${{ env.OUT_DDLPRES }}" "${{ env.OUT_EMEND }}" "${{ env.OUT_DIBATTITO }}"; do
+          # stato di estrazione (parquet+manifest per-legislatura) + unificati
+          for leg in ${{ env.LEGISLATURE }}; do
+            LEG_NUM="${leg#Leg}"
+            for out_pattern in "${{ env.OUT_DDLPRES_PATTERN }}" "${{ env.OUT_EMEND_PATTERN }}" "${{ env.OUT_DIBATTITO_PATTERN }}"; do
+              out="$(echo "$out_pattern" | sed "s/{leg}/$LEG_NUM/")"
+              f="$(basename "$out")"
+              m="${f%.parquet}.manifest.json"
+              gsutil -q cp "data/derived/$f" "${{ env.GCS_CLEAN }}/_derived/$f"
+              [ -f "data/derived/$m" ] && gsutil -q cp "data/derived/$m" "${{ env.GCS_CLEAN }}/_derived/$m"
+            done
+          done
+          # parquet unificati
+          for out in "${{ env.OUT_UNIFIED_DDLPRES }}" "${{ env.OUT_UNIFIED_EMEND }}" "${{ env.OUT_UNIFIED_DIBATTITO }}"; do
             f="$(basename "$out")"
-            m="${f%.parquet}.manifest.json"
-            gsutil -q cp "data/derived/$f" "${{ env.GCS_CLEAN }}/_derived/$f"
-            [ -f "data/derived/$m" ] && gsutil -q cp "data/derived/$m" "${{ env.GCS_CLEAN }}/_derived/$m"
+            gsutil -q cp "$out" "${{ env.GCS_CLEAN }}/_derived/$f"
           done
           echo "✅ state published"
 

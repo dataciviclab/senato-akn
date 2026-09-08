@@ -2,16 +2,16 @@
   "schema_version": 1,
   "repo": "senato-akn",
   "source_repo": "dataciviclab/senato-akn",
-  "updated_at": "2026-09-03",
+  "updated_at": "2026-09-07",
   "datasets": [
     {
       "slug": "senato_corpus",
       "name": "Senato Corpus",
-      "description": "Corpus Akoma Ntoso del Senato (Leg19): ogni documento legislativo (ddlpres, emend, ddlcomm, ddlmess) con famiglia, peso testuale e articoli. Deriva dall'estrazione XML di senato-akn; atto_num collega a senato_ddl via ddl_url (/ddl/N).",
+      "description": "Corpus Akoma Ntoso del Senato (Leg14–Leg19): ogni documento legislativo (ddlpres, emend, ddlcomm, ddlmess) con famiglia, peso testuale e articoli. Deriva dall'estrazione XML di senato-akn; atto_num collega a senato_ddl via ddl_url (/ddl/N).",
       "source": "",
       "source_id": "senato_akn",
       "period": {
-        "start": 2022,
+        "start": 2010,
         "end": 2026
       },
       "tags": [
@@ -61,18 +61,6 @@
           "description": ""
         },
         {
-          "name": "short_title",
-          "type": "VARCHAR",
-          "role": "dimension",
-          "description": ""
-        },
-        {
-          "name": "famiglia",
-          "type": "VARCHAR",
-          "role": "dimension",
-          "description": ""
-        },
-        {
           "name": "work_date",
           "type": "DATE",
           "role": "dimension",
@@ -109,24 +97,6 @@
           "description": ""
         },
         {
-          "name": "frbr_subtype",
-          "type": "VARCHAR",
-          "role": "dimension",
-          "description": ""
-        },
-        {
-          "name": "frbr_number",
-          "type": "VARCHAR",
-          "role": "dimension",
-          "description": ""
-        },
-        {
-          "name": "active_ref",
-          "type": "VARCHAR",
-          "role": "dimension",
-          "description": ""
-        },
-        {
           "name": "text_integrale",
           "type": "VARCHAR",
           "role": "dimension",
@@ -141,17 +111,17 @@
       "stage": "incubating",
       "mart_refs": [
         "senato_corpus__mart_per_atto",
-        "senato_corpus__mart_famiglie"
+        "senato_corpus__mart_per_legislatura"
       ]
     },
     {
       "slug": "senato_dibattito",
       "name": "Senato Dibattito",
-      "description": "Ogni intervento parlamentare nella XIX legislatura (Aula `resaula` e Commissione `sommcomm`), dal corpus Akoma Ntoso. Una riga = un intervento, con oratore (bridge osr:Persona → senato_anagrafica) e testo.",
+      "description": "Ogni intervento parlamentare nelle legislature Leg14–Leg19 (Aula `resaula` e Commissione `sommcomm`), dal corpus Akoma Ntoso. Una riga = un intervento, con oratore (bridge osr:Persona → senato_anagrafica) e testo.",
       "source": "",
       "source_id": "senato_akn",
       "period": {
-        "start": 2022,
+        "start": 2015,
         "end": 2026
       },
       "tags": [
@@ -189,6 +159,12 @@
           "description": ""
         },
         {
+          "name": "legislatura",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
           "name": "senatore_id",
           "type": "BIGINT",
           "role": "dimension",
@@ -204,6 +180,12 @@
         },
         {
           "name": "nome_oratore",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
+          "name": "ruolo",
           "type": "VARCHAR",
           "role": "dimension",
           "description": ""
@@ -235,17 +217,18 @@
       "stage": "incubating",
       "mart_refs": [
         "senato_dibattito__mart_interventi_per_persona",
-        "senato_dibattito__mart_dibattito_per_seduta"
+        "senato_dibattito__mart_dibattito_per_seduta",
+        "senato_dibattito__mart_dib_per_atto"
       ]
     },
     {
       "slug": "senato_emendamenti",
       "name": "Senato Emendamenti",
-      "description": "Ogni emendamento presentato nella XIX legislatura (Aula `emend` e Commissione `emendc`), dal corpus Akoma Ntoso. Un documento per riga, con la fase dell'atto a cui si riferisce (S.NNN) — bridge verso senato_ddl.",
+      "description": "Ogni emendamento presentato nelle legislature Leg14–Leg19 (Aula `emend` e Commissione `emendc`), dal corpus Akoma Ntoso. Un documento per riga, con la fase dell'atto a cui si riferisce (S.NNN) — bridge verso senato_ddl.",
       "source": "",
       "source_id": "senato_akn",
       "period": {
-        "start": 2022,
+        "start": 2001,
         "end": 2026
       },
       "tags": [
@@ -300,6 +283,12 @@
           "description": ""
         },
         {
+          "name": "legislatura",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
           "name": "work_date",
           "type": "DATE",
           "role": "dimension",
@@ -325,21 +314,11 @@
       },
       "stage": "incubating",
       "mart_refs": [
-        "senato_emendamenti__mart_emendamenti_per_atto"
+        "senato_emendamenti__mart_emendamenti_per_fase"
       ]
     }
   ],
   "marts": [
-    {
-      "slug": "senato_corpus__mart_famiglie",
-      "dataset": "senato_corpus",
-      "table": "mart_famiglie",
-      "location": {
-        "type": "gcs",
-        "path": "gs://dataciviclab-mart/senato_corpus/2026/mart_famiglie.parquet",
-        "multi_file": false
-      }
-    },
     {
       "slug": "senato_corpus__mart_per_atto",
       "dataset": "senato_corpus",
@@ -347,6 +326,26 @@
       "location": {
         "type": "gcs",
         "path": "gs://dataciviclab-mart/senato_corpus/2026/mart_per_atto.parquet",
+        "multi_file": false
+      }
+    },
+    {
+      "slug": "senato_corpus__mart_per_legislatura",
+      "dataset": "senato_corpus",
+      "table": "mart_per_legislatura",
+      "location": {
+        "type": "gcs",
+        "path": "gs://dataciviclab-mart/senato_corpus/2026/mart_per_legislatura.parquet",
+        "multi_file": false
+      }
+    },
+    {
+      "slug": "senato_dibattito__mart_dib_per_atto",
+      "dataset": "senato_dibattito",
+      "table": "mart_dib_per_atto",
+      "location": {
+        "type": "gcs",
+        "path": "gs://dataciviclab-mart/senato_dibattito/2026/mart_dib_per_atto.parquet",
         "multi_file": false
       }
     },
@@ -371,12 +370,12 @@
       }
     },
     {
-      "slug": "senato_emendamenti__mart_emendamenti_per_atto",
+      "slug": "senato_emendamenti__mart_emendamenti_per_fase",
       "dataset": "senato_emendamenti",
-      "table": "mart_emendamenti_per_atto",
+      "table": "mart_emendamenti_per_fase",
       "location": {
         "type": "gcs",
-        "path": "gs://dataciviclab-mart/senato_emendamenti/2026/mart_emendamenti_per_atto.parquet",
+        "path": "gs://dataciviclab-mart/senato_emendamenti/2026/mart_emendamenti_per_fase.parquet",
         "multi_file": false
       }
     }
@@ -390,7 +389,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260903T150700Z_ba30e94a",
+        "run_id": "20260907T083501Z_224574a5",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -399,17 +398,17 @@
           "mart": 100
         },
         "output_rows": {
-          "clean": 1898,
-          "mart": 1907
+          "clean": 7659,
+          "mart": 7660
         },
         "output_bytes": {
-          "raw": 6508470,
-          "clean": 5563236,
-          "mart": 14288
+          "raw": 24797744,
+          "clean": 20650964,
+          "mart": 50063
         },
-        "started_at": "2026-09-03T15:07:00.266808+00:00",
-        "finished_at": "2026-09-03T15:07:00.535727+00:00",
-        "duration_seconds": 0.269
+        "started_at": "2026-09-07T08:35:01.950237+00:00",
+        "finished_at": "2026-09-07T08:35:05.282868+00:00",
+        "duration_seconds": 3.333
       }
     },
     {
@@ -420,7 +419,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260903T150700Z_992d3bf2",
+        "run_id": "20260907T083511Z_a31961f7",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -429,17 +428,17 @@
           "mart": 100
         },
         "output_rows": {
-          "clean": 195262,
-          "mart": 775
+          "clean": 359997,
+          "mart": 3610
         },
         "output_bytes": {
-          "raw": 172812598,
-          "clean": 44463580,
-          "mart": 12262
+          "raw": 313585379,
+          "clean": 81521019,
+          "mart": 36049
         },
-        "started_at": "2026-09-03T15:07:00.829588+00:00",
-        "finished_at": "2026-09-03T15:07:02.676440+00:00",
-        "duration_seconds": 1.847
+        "started_at": "2026-09-07T08:35:11.639662+00:00",
+        "finished_at": "2026-09-07T08:35:35.838265+00:00",
+        "duration_seconds": 24.199
       }
     },
     {
@@ -450,7 +449,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260903T150703Z_e05d2569",
+        "run_id": "20260906T231513Z_bcd11410",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -459,17 +458,17 @@
           "mart": 100
         },
         "output_rows": {
-          "clean": 137177,
-          "mart": 401
+          "clean": 1003167,
+          "mart": 1614
         },
         "output_bytes": {
-          "raw": 31794263,
-          "clean": 18882175,
-          "mart": 6527
+          "raw": 186726226,
+          "clean": 110372722,
+          "mart": 22788
         },
-        "started_at": "2026-09-03T15:07:03.088704+00:00",
-        "finished_at": "2026-09-03T15:07:03.991979+00:00",
-        "duration_seconds": 0.903
+        "started_at": "2026-09-06T23:15:13.353699+00:00",
+        "finished_at": "2026-09-06T23:16:13.170481+00:00",
+        "duration_seconds": 59.817
       }
     }
   ],

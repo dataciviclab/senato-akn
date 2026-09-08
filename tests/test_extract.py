@@ -3,11 +3,9 @@ import subprocess
 from pathlib import Path
 
 import pyarrow.parquet as pq
-
 from senato_akn.extract import (
     _all_tipologie,
     _default_out_path,
-    _document_famiglie,
     _extract_tipologia,
     diff_manifest,
     load_manifest,
@@ -60,25 +58,6 @@ class TestHelpers:
         assert _default_out_path("Leg19", _all_tipologie()) == "leg19_all_v0.parquet"
 
 
-class TestFamiglie:
-    def test_classifica_da_doc_title(self) -> None:
-        row = {"doc_title": "Conversione in legge del decreto-legge 4 agosto 2022, n. 115"}
-        assert "decreto_like" in _document_famiglie(row)
-
-    def test_fallback_su_short_title(self) -> None:
-        row = {"doc_title": "", "short_title": "Ratifica ed esecuzione del trattato"}
-        assert "ratifica" in _document_famiglie(row)
-
-    def test_multi_famiglia_separate_da_punto_virgola(self) -> None:
-        row = {"doc_title": "Delega al governo in materia di lavoro"}
-        famiglie = _document_famiglie(row)
-        assert ";" in famiglie
-        assert "delega" in famiglie.split(";")
-
-    def test_senza_titolo_vuoto(self) -> None:
-        assert _document_famiglie({"doc_title": "", "short_title": ""}) == ""
-
-
 class TestWriteOutput:
     def test_parquet_roundtrip(self, tmp_path: Path) -> None:
         out = tmp_path / "corpus.parquet"
@@ -86,7 +65,6 @@ class TestWriteOutput:
             {
                 "atto_dir": "Atto00055177",
                 "doc_title": "Conversione in legge del decreto-legge 115",
-                "famiglia": "decreto_like",
                 "text_len": 1500,
                 "articles_count": 3,
             }
@@ -94,7 +72,7 @@ class TestWriteOutput:
         written = write_output(rows, out)
         table = pq.read_table(written)
         assert table.num_rows == 1
-        assert table.to_pylist()[0]["famiglia"] == "decreto_like"
+        assert table.to_pylist()[0]["doc_title"] == "Conversione in legge del decreto-legge 115"
 
     def test_parquet_vuoto(self, tmp_path: Path) -> None:
         assert pq.read_table(write_output([], tmp_path / "empty.parquet")).num_rows == 0
@@ -131,7 +109,6 @@ class TestRunExtract:
         assert len(rows) == 2
         assert all(r["legislatura"] == "Leg19" for r in rows)
         assert all(r["tipologia"] == "ddlpres" for r in rows)
-        assert all(r["famiglia"] for r in rows)
 
     def test_delta_merge(self, tmp_path: Path) -> None:
         repo = _make_git_repo(tmp_path)

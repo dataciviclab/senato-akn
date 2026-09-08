@@ -25,7 +25,7 @@ jobs:
         run: |
           python3 -m pytest tests/ -v --tb=short
 
-      - name: CI smoke (extract da mini repo git + summarize)
+      - name: CI smoke (extract da mini repo git)
         run: |
           mkdir -p /tmp/senato-smoke/Leg19/Atto00055177/ddlpres
           cp tests/fixtures/sample.akn.xml \
@@ -35,4 +35,3 @@ jobs:
           git -C /tmp/senato-smoke -c user.email=t -c user.name=t commit -qm smoke
           python3 scripts/extract.py --repo-dir /tmp/senato-smoke \
             --limit 1 --out /tmp/senato-ci-test.parquet
-          python3 scripts/build_summaries.py --input /tmp/senato-ci-test.parquet
