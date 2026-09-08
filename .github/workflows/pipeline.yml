@@ -195,8 +195,7 @@ jobs:
       - name: Union legislature
         if: env.MODE == 'incremental'
         run: |
-          python3 scripts/union_legislatures.py \
-            --legislature "$(echo '${{ env.LEGISLATURE }}' | tr ' ' ',')"
+          python3 scripts/union_legislatures.py
 
       # ── Layer toolkit: run su TUTTI i dataset ──────────────────────
       - name: Run toolkit
