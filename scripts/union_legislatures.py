@@ -131,66 +131,112 @@ def union_parquet(
     drop_zero_text: bool = True,
     merge_existing: bool = True,
 ) -> int:
-    """Unisce parquet con dedup per path.
+    """Unisce parquet con dedup per path usando DuckDB.
 
-    Se merge_existing=True e il file di output esiste, lo legge come base
-    e merge solo i nuovi input (risparmia egress GCS).
+    DuckDB gestisce automaticamente: tipi misti, schema diversi,
+    e colonne mancanti tra legislature.
     """
-    tables = []
+    import os
+    import tempfile
 
-    # Base: file unificato esistente
-    if merge_existing:
-        existing = _read_parquet(output_path)
-        if existing is not None:
-            tables.append(existing)
-            logger.info("  Base esistente: %d righe", existing.num_rows)
+    import duckdb
 
-    # Nuovi per-leg file
-    new_rows = 0
-    for p in input_paths:
-        table = _read_parquet(p)
-        if table is None:
-            continue
-        table = _ensure_legislatura(table, p)
-        tables.append(table)
-        new_rows += table.num_rows
-        logger.info("  %s: %d righe", p.name, table.num_rows)
+    tmp_files = []
+    try:
+        con = duckdb.connect(":memory:")
 
-    if not tables:
-        logger.warning("Nessun dato per %s", output_path.name)
-        return 0
+        # Base: file unificato esistente
+        if merge_existing and output_path.exists():
+            try:
+                tmp_base = os.path.join(tempfile.gettempdir(), "_union_base.parquet")
+                base = pq.read_table(output_path)
+                pq.write_table(base, tmp_base)
+                tmp_files.append(tmp_base)
+                logger.info("  Base esistente: %d righe", base.num_rows)
+            except Exception as e:
+                logger.warning("Base corrotta, salto: %s", e)
 
-    # Cast a tipi comuni prima del concat (evita large_string vs string)
-    def _normalize_types(table: pa.Table) -> pa.Table:
-        new_fields = []
-        for i, field in enumerate(table.schema):
-            if pa.types.is_large_string(field.type):
-                new_fields.append(field.with_type(pa.string()))
-            else:
-                new_fields.append(field)
-        return table.cast(pa.schema(new_fields, metadata=table.schema.metadata))
+        # Per-leg file
+        for p in input_paths:
+            if not p.exists():
+                continue
+            try:
+                table = pq.read_table(p)
+                if table.num_rows == 0:
+                    continue
+                # Aggiungi legislatura se manca
+                if "legislatura" not in table.column_names:
+                    leg_num = p.stem.split("_")[0].replace("leg", "")
+                    table = table.append_column(
+                        "legislatura", pa.array([f"Leg{leg_num}"] * table.num_rows)
+                    )
+                tmp = os.path.join(tempfile.gettempdir(), f"_union_{p.name}")
+                pq.write_table(table, tmp)
+                tmp_files.append(tmp)
+                logger.info("  %s: %d righe", p.name, table.num_rows)
+            except Exception as e:
+                logger.warning("  Salto %s: %s", p.name, e)
 
-    tables = [_normalize_types(t) for t in tables]
+        if not tmp_files:
+            logger.warning("Nessun dato per %s", output_path.name)
+            return 0
 
-    # Concat e dedup
-    combined = pa.concat_tables(tables, promote_options="default")
-    logger.info("  Prima dedup: %d righe", combined.num_rows)
-    combined = _dedup_by_path(combined)
+        # DuckDB read_parquet con union_by_name: gestisce tipi e schema
+        paths_sql = ", ".join(f"'{f}'" for f in tmp_files)
+        con.execute(f"""
+            CREATE TABLE _merged AS
+            SELECT * FROM read_parquet([{paths_sql}], union_by_name=true)
+        """)
 
-    # Filtra text_len == 0
-    if drop_zero_text and "text_len" in combined.column_names:
-        import pyarrow.compute as pc
+        # Dedup per path: tieni l'ultima occorrenza per ogni path
+        has_path = any(
+            r[1] == "path"
+            for r in con.execute("PRAGMA table_info('_merged')").fetchall()
+        )
 
-        mask = pc.greater(combined.column("text_len"), 0)
-        combined = combined.filter(mask)
-        logger.info("  Dopo filtro text_len > 0: %d righe", combined.num_rows)
+        if has_path:
+            con.execute("""
+                CREATE TABLE _with_path AS
+                SELECT * FROM _merged WHERE path IS NOT NULL
+            """)
+            con.execute("""
+                CREATE TABLE _no_path AS
+                SELECT * FROM _merged WHERE path IS NULL OR path = ''
+            """)
+            deduped = pa.Table.from_pandas(con.execute("""
+                SELECT * FROM _with_path
+                WHERE rowid IN (
+                    SELECT MAX(rowid) FROM _with_path GROUP BY path
+                )
+            """).fetchdf())
+            no_path = pa.Table.from_pandas(con.execute("SELECT * FROM _no_path").fetchdf())
+            combined = pa.concat_tables([no_path, deduped])
+        else:
+            combined = pa.Table.from_pandas(con.execute("SELECT * FROM _merged").fetchdf())
+        con.close()
 
-    # Scrivi
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(combined, output_path, compression="zstd")
-    logger.info("  Scritto %s: %d righe", output_path.name, combined.num_rows)
+        logger.info("  Dopo dedup: %d righe", combined.num_rows)
 
-    return combined.num_rows
+        # Filtra text_len == 0
+        if drop_zero_text and "text_len" in combined.column_names:
+            import pyarrow.compute as pc
+
+            mask = pc.greater(combined.column("text_len"), 0)
+            combined = combined.filter(mask)
+            logger.info("  Dopo filtro text_len > 0: %d righe", combined.num_rows)
+
+        # Scrivi
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        pq.write_table(combined, output_path, compression="zstd")
+        logger.info("  Scritto %s: %d righe", output_path.name, combined.num_rows)
+        return combined.num_rows
+
+    finally:
+        for f in tmp_files:
+            try:
+                os.unlink(f)
+            except OSError:
+                pass
 
 
 def main() -> int:
