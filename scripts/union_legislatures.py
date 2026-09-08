@@ -131,13 +131,8 @@ def union_parquet(
     drop_zero_text: bool = True,
     merge_existing: bool = True,
 ) -> int:
-    """Unisce parquet con dedup per path usando DuckDB.
-
-    DuckDB gestisce automaticamente: tipi misti, schema diversi,
-    e colonne mancanti tra legislature.
-    """
+    """Unisce parquet con dedup per path. Tutto in DuckDB, niente pyarrow."""
     import os
-    import tempfile
 
     import duckdb
 
@@ -148,32 +143,34 @@ def union_parquet(
         # Base: file unificato esistente
         if merge_existing and output_path.exists():
             try:
-                tmp_base = os.path.join(tempfile.gettempdir(), "_union_base.parquet")
-                base = pq.read_table(output_path)
-                pq.write_table(base, tmp_base)
-                tmp_files.append(tmp_base)
-                logger.info("  Base esistente: %d righe", base.num_rows)
+                n = con.execute(
+                    f"SELECT COUNT(*) FROM read_parquet('{output_path}')"
+                ).fetchone()[0]
+                logger.info("  Base esistente: %d righe", n)
+                tmp_files.append(str(output_path))
             except Exception as e:
                 logger.warning("Base corrotta, salto: %s", e)
 
-        # Per-leg file
+        # Per-leg file — aggiungi sempre colonna legislatura
         for p in input_paths:
             if not p.exists():
                 continue
             try:
-                table = pq.read_table(p)
-                if table.num_rows == 0:
+                n = con.execute(
+                    f"SELECT COUNT(*) FROM read_parquet('{p}')"
+                ).fetchone()[0]
+                if n == 0:
                     continue
-                # Aggiungi legislatura se manca
-                if "legislatura" not in table.column_names:
-                    leg_num = p.stem.split("_")[0].replace("leg", "")
-                    table = table.append_column(
-                        "legislatura", pa.array([f"Leg{leg_num}"] * table.num_rows)
-                    )
-                tmp = os.path.join(tempfile.gettempdir(), f"_union_{p.name}")
-                pq.write_table(table, tmp)
+                leg_num = p.stem.split("_")[0].replace("leg", "")
+                tmp = str(p) + ".leg.parquet"
+                con.execute(f"""
+                    COPY (
+                        SELECT *, 'Leg{leg_num}' AS legislatura
+                        FROM read_parquet('{p}')
+                    ) TO '{tmp}' (FORMAT PARQUET, COMPRESSION ZSTD)
+                """)
                 tmp_files.append(tmp)
-                logger.info("  %s: %d righe", p.name, table.num_rows)
+                logger.info("  %s: %d righe", p.name, n)
             except Exception as e:
                 logger.warning("  Salto %s: %s", p.name, e)
 
@@ -181,62 +178,61 @@ def union_parquet(
             logger.warning("Nessun dato per %s", output_path.name)
             return 0
 
-        # DuckDB read_parquet con union_by_name: gestisce tipi e schema
+        # DuckDB: leggi tutti i file, dedup, filtra, scrivi
         paths_sql = ", ".join(f"'{f}'" for f in tmp_files)
         con.execute(f"""
-            CREATE TABLE _merged AS
+            CREATE TABLE _all AS
             SELECT * FROM read_parquet([{paths_sql}], union_by_name=true)
         """)
 
-        # Dedup per path: tieni l'ultima occorrenza per ogni path
-        has_path = any(
-            r[1] == "path"
-            for r in con.execute("PRAGMA table_info('_merged')").fetchall()
-        )
-
+        # Dedup per path
+        has_path = "path" in [
+            r[1] for r in con.execute("PRAGMA table_info('_all')").fetchall()
+        ]
         if has_path:
+            before = con.execute("SELECT COUNT(*) FROM _all").fetchone()[0]
             con.execute("""
-                CREATE TABLE _with_path AS
-                SELECT * FROM _merged WHERE path IS NOT NULL
-            """)
-            con.execute("""
-                CREATE TABLE _no_path AS
-                SELECT * FROM _merged WHERE path IS NULL OR path = ''
-            """)
-            deduped = pa.Table.from_pandas(con.execute("""
-                SELECT * FROM _with_path
+                DELETE FROM _all
                 WHERE rowid IN (
-                    SELECT MAX(rowid) FROM _with_path GROUP BY path
+                    SELECT rowid FROM _all
+                    WHERE path IS NOT NULL AND path != ''
+                    EXCEPT
+                    SELECT MAX(rowid) FROM _all
+                    WHERE path IS NOT NULL AND path != ''
+                    GROUP BY path
                 )
-            """).fetchdf())
-            no_path = pa.Table.from_pandas(con.execute("SELECT * FROM _no_path").fetchdf())
-            combined = pa.concat_tables([no_path, deduped])
-        else:
-            combined = pa.Table.from_pandas(con.execute("SELECT * FROM _merged").fetchdf())
-        con.close()
-
-        logger.info("  Dopo dedup: %d righe", combined.num_rows)
+            """)
+            after = con.execute("SELECT COUNT(*) FROM _all").fetchone()[0]
+            if before != after:
+                logger.info("  Dedup: %d → %d (-%d)", before, after, before - after)
 
         # Filtra text_len == 0
-        if drop_zero_text and "text_len" in combined.column_names:
-            import pyarrow.compute as pc
+        if drop_zero_text:
+            has_tl = "text_len" in [
+                r[1] for r in con.execute("PRAGMA table_info('_all')").fetchall()
+            ]
+            if has_tl:
+                before = con.execute("SELECT COUNT(*) FROM _all").fetchone()[0]
+                con.execute("DELETE FROM _all WHERE text_len IS NOT NULL AND text_len <= 0")
+                after = con.execute("SELECT COUNT(*) FROM _all").fetchone()[0]
+                if before != after:
+                    logger.info("  Filtro text_len>0: %d → %d", before, after)
 
-            mask = pc.greater(combined.column("text_len"), 0)
-            combined = combined.filter(mask)
-            logger.info("  Dopo filtro text_len > 0: %d righe", combined.num_rows)
-
-        # Scrivi
+        # Scrivi su file temporaneo, poi rinomina
+        tmp_out = str(output_path) + ".tmp.parquet"
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        pq.write_table(combined, output_path, compression="zstd")
-        logger.info("  Scritto %s: %d righe", output_path.name, combined.num_rows)
-        return combined.num_rows
+        con.execute(f"COPY _all TO '{tmp_out}' (FORMAT PARQUET, COMPRESSION ZSTD)")
+        con.close()
+        os.replace(tmp_out, output_path)
 
-    finally:
-        for f in tmp_files:
-            try:
-                os.unlink(f)
-            except OSError:
-                pass
+        final = pq.read_metadata(output_path).num_rows
+        logger.info("  Scritto %s: %d righe", output_path.name, final)
+        return final
+
+    except Exception:
+        if "con" in dir() and con is not None:
+            con.close()
+        raise
 
 
 def main() -> int:
