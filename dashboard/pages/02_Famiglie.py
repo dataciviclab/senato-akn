@@ -1,5 +1,6 @@
 """Famiglie — Analisi per famiglia legislativa."""
 
+import altair as alt
 import streamlit as st
 from sources import load_mart, query_clean
 
@@ -19,8 +20,6 @@ st.subheader("Distribuzione per famiglia")
 
 top_n = st.slider("Top famiglie", 5, 30, 15, key="top_fam_famiglie")
 df_top = df_fam.nlargest(top_n, "testo_totale")
-
-import altair as alt
 
 chart = (
     alt.Chart(df_top)

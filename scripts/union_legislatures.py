@@ -60,6 +60,16 @@ UNIFIED_OUTPUTS = {
 }
 
 
+def find_available_legislatures() -> list[str]:
+    """Trova le legislature disponibili nei parquet derivati."""
+    legislatures = set()
+    for f in DERIVED_DIR.glob("leg[0-9]*_ddlpres_v0.parquet"):
+        name = f.stem.replace("_ddlpres_v0", "")
+        if name.startswith("leg") and name[3:].isdigit():
+            legislatures.add(f"Leg{name[3:]}")
+    return sorted(legislatures)
+
+
 def find_per_leg_files(pattern: str) -> list[Path]:
     """Trova tutti i file per-legislatura che matchano il pattern."""
     return sorted(DERIVED_DIR.glob(pattern))
