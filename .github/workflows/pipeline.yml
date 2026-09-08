@@ -1,20 +1,12 @@
 # Pipeline — manutenzione del corpus: extract → toolkit → GCS → registry
 #
-# Orchestratore sottile (ADR-001): esegue TUTTI i dataset in datasets/ e
-# sincronizza per directory di output (niente slug hardcodato). Un dataset
-# nuovo entra automaticamente — basta che il suo parquet raw sia prodotto.
-#
 # Flusso:
-#   1. restore stato estrazione (parquet + manifest da GCS, per dataset)
-#   2. estrazione: parquet derivati per i dataset (incrementale)
-#   3. toolkit run su tutti i dataset (raw local_file → clean → mart)
-#   4. sync GCS: clean+mart (canonici) + stato _derived (per il delta)
-#   5. registry → draft PR
-#
-# Trigger:
-#   - schedule mensile → incremental (tutti i dataset)
-#   - pull_request merged su datasets/**.py → incremental
-#   - workflow_dispatch: mode = incremental | full (artifact corpus completo)
+#   1. clone upstream (git)
+#   2. estrazione: parquet per-leg per ogni legislatura (full)
+#   3. union: tutti i per-leg → file unificati
+#   4. toolkit: clean + mart
+#   5. sync GCS: clean/mart + unified
+#   6. registry → draft PR
 
 name: pipeline
 on:
@@ -31,7 +23,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "incremental (delta + publish) | full (corpus completo, artifact)"
+        description: "incremental (default)"
         default: "incremental"
         required: false
 
@@ -45,21 +37,10 @@ env:
   GCS_CLEAN: gs://dataciviclab-clean
   GCS_MART: gs://dataciviclab-mart
   YEAR: "2026"
-  # Tutte le legislature — ogni run processa tutto, l'estrazione è incrementale
   LEGISLATURE: "Leg14 Leg15 Leg16 Leg17 Leg18 Leg19"
-  # Per-legislatura: tipologie e pattern output
   TIPOLOGIE_DDLPRES: ddlpres
   TIPOLOGIE_EMEND: emend,emendc
   TIPOLOGIE_DIBATTITO: resaula,sommcomm
-  FULL_TIPOLOGIE: ddlpres,emend,emendc,ddlmess,ddlcomm,resaula,sommcomm
-  # Pattern output (placeholder {leg} sostituito nel loop)
-  OUT_DDLPRES_PATTERN: "data/derived/leg{leg}_ddlpres_v0.parquet"
-  OUT_EMEND_PATTERN: "data/derived/leg{leg}_emend_emendc_v0.parquet"
-  OUT_DIBATTITO_PATTERN: "data/derived/leg{leg}_resaula_sommcomm_v0.parquet"
-  # Output unificati (dopo union)
-  OUT_UNIFIED_DDLPRES: data/derived/leg_unified_ddlpres_v0.parquet
-  OUT_UNIFIED_EMEND: data/derived/leg_unified_emend_emendc_v0.parquet
-  OUT_UNIFIED_DIBATTITO: data/derived/leg_unified_resaula_sommcomm_v0.parquet
 
 jobs:
   pipeline:
@@ -76,7 +57,6 @@ jobs:
 
       - uses: dataciviclab/.github/actions/python-setup@main
 
-      # ── Auth GCP (WIF) ─────────────────────────────────────────
       - name: GCP Auth (WIF)
         id: gcp
         if: env.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && env.GCP_SERVICE_ACCOUNT != ''
@@ -89,43 +69,7 @@ jobs:
         if: env.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && env.GCP_SERVICE_ACCOUNT != ''
         uses: google-github-actions/setup-gcloud@v3
 
-      # ── Mode: incremental di default (schedule/merge); dispatch può
-      #    chiedere full ─────────────────────────────────────────────
-      - name: Resolve mode
-        id: mode
-        run: |
-          MODE="incremental"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            MODE="${{ inputs.mode || 'incremental' }}"
-          fi
-          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
-          echo "MODE=$MODE" >> "$GITHUB_ENV"
-          echo "Mode: $MODE"
-
-      # ── Restore: scarica solo il file unificato + manifest Leg19 ────
-      # Non servono i per-leg delle legislature storiche — il delta viene
-      # mergiato nel file unificato esistente.
-      - name: Restore extraction state from GCS
-        if: env.MODE == 'incremental' && env.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && env.GCP_SERVICE_ACCOUNT != ''
-        run: |
-          mkdir -p data/derived
-          # File unificati (base per il merge)
-          for f in "leg_unified_ddlpres_v0.parquet" "leg_unified_emend_emendc_v0.parquet" "leg_unified_resaula_sommcomm_v0.parquet"; do
-            gsutil -q cp "${{ env.GCS_CLEAN }}/_derived/$f" "data/derived/$f" 2>/dev/null && echo "restored: $f" || echo "assente: $f (primo run)"
-          done
-          # Manifest della legislatura corrente (per extraction delta)
-          for pattern in "leg*_manifest.json"; do
-            for f in $(gsutil ls "${{ env.GCS_CLEAN }}/_derived/$pattern" 2>/dev/null || true); do
-              fname="$(basename "$f")"
-              # Solo manifest della legislatura corrente
-              if echo "$fname" | grep -qE "$(echo '${{ env.LEGISLATURE }}' | tr ' ' '|')"; then
-                gsutil -q cp "$f" "data/derived/$fname" && echo "restored: $fname"
-              fi
-            done
-          done
-          echo "Derived files: $(ls data/derived/*.parquet 2>/dev/null | wc -l) parquet"
-
-      # ── Git clone: clone condiviso con tutte le legislature ─────────
+      # ── Git clone upstream ──────────────────────────────────────────
       - name: Git clone (tutte le legislature)
         run: |
           for leg in ${{ env.LEGISLATURE }}; do
@@ -133,128 +77,81 @@ jobs:
             python3 -c "
           from senato_akn.git_source import ensure_repo
           ensure_repo('data/raw/akn', '$leg')
-          print('OK: $leg materializzata')
+          print('OK: $leg')
           "
           done
 
-      # ── Estrazione (incrementale per dataset, loop legislature) ────
+      # ── Extract: tutti i per-leg (full) ────────────────────────────
       - name: Extract ddlpres
-        if: env.MODE == 'incremental'
         run: |
           for leg in ${{ env.LEGISLATURE }}; do
             LEG_NUM="${leg#Leg}"
-            OUT="$(echo "${{ env.OUT_DDLPRES_PATTERN }}" | sed "s/{leg}/$LEG_NUM/")"
+            OUT="data/derived/leg${LEG_NUM}_ddlpres_v0.parquet"
             echo "=== Extract $leg ddlpres → $OUT ==="
             python3 scripts/extract.py \
               --legislatura "$leg" \
               --tipologie "${{ env.TIPOLOGIE_DDLPRES }}" \
               --drop-zero-text \
-              --out "$OUT" \
-              --incremental
+              --out "$OUT"
           done
 
       - name: Extract emend+emendc
-        if: env.MODE == 'incremental'
         run: |
           for leg in ${{ env.LEGISLATURE }}; do
             LEG_NUM="${leg#Leg}"
-            OUT="$(echo "${{ env.OUT_EMEND_PATTERN }}" | sed "s/{leg}/$LEG_NUM/")"
+            OUT="data/derived/leg${LEG_NUM}_emend_emendc_v0.parquet"
             echo "=== Extract $leg emend+emendc → $OUT ==="
             python3 scripts/extract.py \
               --legislatura "$leg" \
               --tipologie "${{ env.TIPOLOGIE_EMEND }}" \
               --drop-zero-text \
-              --out "$OUT" \
-              --incremental
+              --out "$OUT"
           done
 
-      - name: Extract dibattito (resaula+sommcomm)
-        if: env.MODE == 'incremental'
+      - name: Extract dibattito
         run: |
           for leg in ${{ env.LEGISLATURE }}; do
             LEG_NUM="${leg#Leg}"
-            OUT="$(echo "${{ env.OUT_DIBATTITO_PATTERN }}" | sed "s/{leg}/$LEG_NUM/")"
+            OUT="data/derived/leg${LEG_NUM}_resaula_sommcomm_v0.parquet"
             echo "=== Extract $leg dibattito → $OUT ==="
             python3 scripts/extract.py \
               --legislatura "$leg" \
               --tipologie "${{ env.TIPOLOGIE_DIBATTITO }}" \
               --drop-zero-text \
-              --out "$OUT" \
-              --incremental
-          done
-
-      - name: Extract full corpus (tipologie parsate)
-        if: env.MODE == 'full'
-        run: |
-          for leg in ${{ env.LEGISLATURE }}; do
-            LEG_NUM="${leg#Leg}"
-            OUT="data/derived/leg${LEG_NUM}_full_v0.parquet"
-            echo "=== Extract $leg full → $OUT ==="
-            python3 scripts/extract.py \
-              --legislatura "$leg" \
-              --tipologie "${{ env.FULL_TIPOLOGIE }}" \
-              --drop-zero-text \
               --out "$OUT"
           done
 
-      # ── Union: unisci per-legislatura in file unificati ────────────
+      # ── Union: tutti i per-leg → unificati ─────────────────────────
       - name: Union legislature
-        if: env.MODE == 'incremental'
         run: |
           python3 scripts/union_legislatures.py
 
-      # ── Layer toolkit: run su TUTTI i dataset ──────────────────────
+      # ── Toolkit: clean + mart ──────────────────────────────────────
       - name: Run toolkit
-        if: env.MODE == 'incremental'
         run: |
           for cfg in datasets/*/dataset.yml; do
             echo "=== $cfg ==="
             python3 -m toolkit.cli.app run --config "$cfg"
           done
 
-      # ── Sync GCS: per directory di output (niente slug hardcodato) ─
-      - name: Publish clean + mart + state to GCS
-        if: env.MODE == 'incremental' && env.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && env.GCP_SERVICE_ACCOUNT != ''
+      # ── Publish: clean/mart + unified → GCS ────────────────────────
+      - name: Publish to GCS
+        if: env.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && env.GCP_SERVICE_ACCOUNT != ''
         run: |
           for slug in $(ls out/data/clean/ 2>/dev/null); do
             gsutil -m rsync -r -x ".*/_(run|validate)/.*|.*/metadata\.json$" \
               "out/data/clean/$slug/${{ env.YEAR }}/" \
               "${{ env.GCS_CLEAN }}/$slug/${{ env.YEAR }}/"
-            echo "✅ $slug clean synced"
           done
           for slug in $(ls out/data/mart/ 2>/dev/null); do
             gsutil -m rsync -r -x ".*/_(run|validate)/.*|.*/metadata\.json$" \
               "out/data/mart/$slug/${{ env.YEAR }}/" \
               "${{ env.GCS_MART }}/$slug/${{ env.YEAR }}/"
-            echo "✅ $slug mart synced"
           done
-          # stato: solo unificati + manifest Leg19 (per il prossimo delta)
-          for out in "${{ env.OUT_UNIFIED_DDLPRES }}" "${{ env.OUT_UNIFIED_EMEND }}" "${{ env.OUT_UNIFIED_DIBATTITO }}"; do
-            f="$(basename "$out")"
-            gsutil -q cp "$out" "${{ env.GCS_CLEAN }}/_derived/$f" && echo "published: $f"
+          for f in "leg_unified_ddlpres_v0.parquet" "leg_unified_emend_emendc_v0.parquet" "leg_unified_resaula_sommcomm_v0.parquet"; do
+            [ -f "data/derived/$f" ] && gsutil -q cp "data/derived/$f" "${{ env.GCS_CLEAN }}/_derived/$f"
           done
-          # Manifest della legislatura corrente (per prossimo extract incrementale)
-          for leg in ${{ env.LEGISLATURE }}; do
-            LEG_NUM="${leg#Leg}"
-            for out_pattern in "${{ env.OUT_DDLPRES_PATTERN }}" "${{ env.OUT_EMEND_PATTERN }}" "${{ env.OUT_DIBATTITO_PATTERN }}"; do
-              out="$(echo "$out_pattern" | sed "s/{leg}/$LEG_NUM/")"
-              f="$(basename "$out")"
-              m="${f%.parquet}.manifest.json"
-              [ -f "data/derived/$m" ] && gsutil -q cp "data/derived/$m" "${{ env.GCS_CLEAN }}/_derived/$m"
-            done
-          done
-          echo "✅ state published"
 
-      # ── Artifact del corpus full (dispatch mode=full) ──────────────
-      - name: Upload full corpus artifact
-        if: env.MODE == 'full'
-        uses: actions/upload-artifact@v7
-        with:
-          name: senato-corpus-full
-          path: data/derived/
-          retention-days: 60
-
-      # ── Registry (artifact catalogo) → draft PR (composite, stesso job) ──
       - name: Registry update PR
         uses: dataciviclab/.github/actions/registry-update-pr@main
         env:
