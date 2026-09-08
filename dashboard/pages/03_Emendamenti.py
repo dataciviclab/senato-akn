@@ -16,9 +16,9 @@ if df.empty:
     st.warning("Nessun dato disponibile.")
     st.stop()
 
-# Arricchisci con titolo dal corpus
+# Arricchisci con titolo dal corpus (GROUP BY per evitare duplicati)
 df_titles = query_clean("senato_corpus",
-    "SELECT DISTINCT atto_num, doc_title FROM clean_input WHERE atto_num IS NOT NULL")
+    "SELECT atto_num, MIN(doc_title) AS doc_title FROM clean_input WHERE atto_num IS NOT NULL GROUP BY atto_num")
 df = df.merge(df_titles, on="atto_num", how="left")
 
 # ── KPI ─────────────────────────────────────────────────────────────
