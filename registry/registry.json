@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repo": "senato-akn",
   "source_repo": "dataciviclab/senato-akn",
-  "updated_at": "2026-09-08",
+  "updated_at": "2026-09-27",
   "datasets": [
     {
       "slug": "senato_corpus",
@@ -26,7 +26,7 @@
         {
           "name": "atto_num",
           "type": "BIGINT",
-          "role": "metric",
+          "role": "dimension",
           "description": "Numero dell'atto nella directory AttoNNNNN: coincide con /ddl/N (ddl_url in senato_ddl) — chiave del bridge verso open-politica",
           "semantic_type": "ddl_id"
         },
@@ -189,7 +189,7 @@
       ],
       "location": {
         "type": "gcs",
-        "path": "gs://dataciviclab-clean/senato_corpus/2026/senato_corpus_2026_clean.parquet",
+        "path": "gs://dataciviclab-clean/senato-akn/senato_corpus/2026/senato_corpus_2026_clean.parquet",
         "multi_file": false
       },
       "stage": "incubating",
@@ -252,8 +252,9 @@
         {
           "name": "atto_num",
           "type": "BIGINT",
-          "role": "metric",
-          "description": ""
+          "role": "dimension",
+          "description": "",
+          "semantic_type": "ddl_id"
         },
         {
           "name": "senatore_id",
@@ -302,7 +303,7 @@
       ],
       "location": {
         "type": "gcs",
-        "path": "gs://dataciviclab-clean/senato_dibattito/2026/senato_dibattito_2026_clean.parquet",
+        "path": "gs://dataciviclab-clean/senato-akn/senato_dibattito/2026/senato_dibattito_2026_clean.parquet",
         "multi_file": false
       },
       "stage": "incubating",
@@ -340,8 +341,9 @@
         {
           "name": "atto_num",
           "type": "BIGINT",
-          "role": "metric",
-          "description": ""
+          "role": "dimension",
+          "description": "",
+          "semantic_type": "ddl_id"
         },
         {
           "name": "emend_id",
@@ -436,7 +438,7 @@
       ],
       "location": {
         "type": "gcs",
-        "path": "gs://dataciviclab-clean/senato_emendamenti/2026/senato_emendamenti_2026_clean.parquet",
+        "path": "gs://dataciviclab-clean/senato-akn/senato_emendamenti/2026/senato_emendamenti_2026_clean.parquet",
         "multi_file": false
       },
       "stage": "incubating",
@@ -452,7 +454,7 @@
       "table": "mart_famiglie",
       "location": {
         "type": "gcs",
-        "path": "gs://dataciviclab-mart/senato_corpus/2026/mart_famiglie.parquet",
+        "path": "gs://dataciviclab-mart/senato-akn/senato_corpus/2026/mart_famiglie.parquet",
         "multi_file": false
       }
     },
@@ -462,7 +464,7 @@
       "table": "mart_per_atto",
       "location": {
         "type": "gcs",
-        "path": "gs://dataciviclab-mart/senato_corpus/2026/mart_per_atto.parquet",
+        "path": "gs://dataciviclab-mart/senato-akn/senato_corpus/2026/mart_per_atto.parquet",
         "multi_file": false
       }
     },
@@ -472,7 +474,7 @@
       "table": "mart_per_legislatura",
       "location": {
         "type": "gcs",
-        "path": "gs://dataciviclab-mart/senato_corpus/2026/mart_per_legislatura.parquet",
+        "path": "gs://dataciviclab-mart/senato-akn/senato_corpus/2026/mart_per_legislatura.parquet",
         "multi_file": false
       }
     },
@@ -482,7 +484,7 @@
       "table": "mart_dib_per_atto",
       "location": {
         "type": "gcs",
-        "path": "gs://dataciviclab-mart/senato_dibattito/2026/mart_dib_per_atto.parquet",
+        "path": "gs://dataciviclab-mart/senato-akn/senato_dibattito/2026/mart_dib_per_atto.parquet",
         "multi_file": false
       }
     },
@@ -492,7 +494,7 @@
       "table": "mart_dibattito_per_seduta",
       "location": {
         "type": "gcs",
-        "path": "gs://dataciviclab-mart/senato_dibattito/2026/mart_dibattito_per_seduta.parquet",
+        "path": "gs://dataciviclab-mart/senato-akn/senato_dibattito/2026/mart_dibattito_per_seduta.parquet",
         "multi_file": false
       }
     },
@@ -502,7 +504,7 @@
       "table": "mart_interventi_per_persona",
       "location": {
         "type": "gcs",
-        "path": "gs://dataciviclab-mart/senato_dibattito/2026/mart_interventi_per_persona.parquet",
+        "path": "gs://dataciviclab-mart/senato-akn/senato_dibattito/2026/mart_interventi_per_persona.parquet",
         "multi_file": false
       }
     },
@@ -512,7 +514,7 @@
       "table": "mart_emendamenti_per_atto",
       "location": {
         "type": "gcs",
-        "path": "gs://dataciviclab-mart/senato_emendamenti/2026/mart_emendamenti_per_atto.parquet",
+        "path": "gs://dataciviclab-mart/senato-akn/senato_emendamenti/2026/mart_emendamenti_per_atto.parquet",
         "multi_file": false
       }
     }
@@ -526,7 +528,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260908T203926Z_45986333",
+        "run_id": "20260927T143005Z_72e11def",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -535,17 +537,17 @@
           "mart": 100
         },
         "output_rows": {
-          "clean": 9903,
-          "mart": 7787
+          "clean": 9936,
+          "mart": 7813
         },
         "output_bytes": {
-          "raw": 33612659,
-          "clean": 33225263,
-          "mart": 52092
+          "raw": 33710861,
+          "clean": 33214896,
+          "mart": 52287
         },
-        "started_at": "2026-09-08T20:39:26.567549+00:00",
-        "finished_at": "2026-09-08T20:39:28.676073+00:00",
-        "duration_seconds": 2.109
+        "started_at": "2026-09-27T14:30:05.648646+00:00",
+        "finished_at": "2026-09-27T14:30:06.809522+00:00",
+        "duration_seconds": 1.161
       }
     },
     {
@@ -556,7 +558,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260908T203929Z_e35430ee",
+        "run_id": "20260927T143007Z_230c9400",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -565,17 +567,17 @@
           "mart": 100
         },
         "output_rows": {
-          "clean": 359997,
-          "mart": 3610
+          "clean": 364428,
+          "mart": 3638
         },
         "output_bytes": {
-          "raw": 253252124,
-          "clean": 81623671,
-          "mart": 35857
+          "raw": 258497432,
+          "clean": 83114618,
+          "mart": 35753
         },
-        "started_at": "2026-09-08T20:39:29.065077+00:00",
-        "finished_at": "2026-09-08T20:39:35.230352+00:00",
-        "duration_seconds": 6.165
+        "started_at": "2026-09-27T14:30:07.052500+00:00",
+        "finished_at": "2026-09-27T14:30:11.270050+00:00",
+        "duration_seconds": 4.218
       }
     },
     {
@@ -586,7 +588,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20260908T203935Z_43cc7a84",
+        "run_id": "20260927T143011Z_79bc14e2",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -595,17 +597,17 @@
           "mart": 100
         },
         "output_rows": {
-          "clean": 1003167,
-          "mart": 2958
+          "clean": 1004482,
+          "mart": 2961
         },
         "output_bytes": {
-          "raw": 140052501,
-          "clean": 113981909,
-          "mart": 35425
+          "raw": 140202215,
+          "clean": 114097250,
+          "mart": 35746
         },
-        "started_at": "2026-09-08T20:39:35.616951+00:00",
-        "finished_at": "2026-09-08T20:39:42.794385+00:00",
-        "duration_seconds": 7.177
+        "started_at": "2026-09-27T14:30:11.516691+00:00",
+        "finished_at": "2026-09-27T14:30:16.408330+00:00",
+        "duration_seconds": 4.892
       }
     }
   ],
@@ -621,10 +623,22 @@
             "name": "Senato Corpus",
             "column": "atto_num",
             "semantic_type": "ddl_id"
+          },
+          {
+            "slug": "senato_dibattito",
+            "name": "Senato Dibattito",
+            "column": "atto_num",
+            "semantic_type": "ddl_id"
+          },
+          {
+            "slug": "senato_emendamenti",
+            "name": "Senato Emendamenti",
+            "column": "atto_num",
+            "semantic_type": "ddl_id"
           }
         ],
         "types": {
-          "ddl_id": 1
+          "ddl_id": 3
         }
       },
       "Persona": {
