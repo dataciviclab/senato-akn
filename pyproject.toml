@@ -7,7 +7,7 @@ name = "senato-akn"
 version = "0.2.0"
 description = "Corpus legislativo del Senato in formato Akoma Ntoso"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.12"
 authors = [{name = "DataCivicLab"}]
 dependencies = [
@@ -21,6 +21,14 @@ include = ["senato_akn*"]
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
+]
+dashboard = [
+    "streamlit>=1.61",
+    "plotly>=5.18",
+    "altair>=6.2",
+    "pandas>=3.0",
+    "duckdb>=1.5.3",
+    "dataciviclab-toolkit @ git+https://github.com/dataciviclab/toolkit.git",
 ]
 
 [tool.pytest.ini_options]
