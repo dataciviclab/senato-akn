@@ -31,6 +31,12 @@
           "semantic_type": "ddl_id"
         },
         {
+          "name": "fase",
+          "type": "VARCHAR",
+          "role": "dimension",
+          "description": ""
+        },
+        {
           "name": "legislatura",
           "type": "VARCHAR",
           "role": "dimension",
@@ -434,6 +440,24 @@
           "type": "VARCHAR",
           "role": "dimension",
           "description": ""
+        },
+        {
+          "name": "n_copie",
+          "type": "BIGINT",
+          "role": "metric",
+          "description": ""
+        },
+        {
+          "name": "n_atti_dir",
+          "type": "BIGINT",
+          "role": "metric",
+          "description": ""
+        },
+        {
+          "name": "n_atti_fase",
+          "type": "BIGINT",
+          "role": "metric",
+          "description": ""
         }
       ],
       "location": {
@@ -443,7 +467,8 @@
       },
       "stage": "incubating",
       "mart_refs": [
-        "senato_emendamenti__mart_emendamenti_per_atto"
+        "senato_emendamenti__mart_emendamenti_per_atto",
+        "senato_emendamenti__mart_emendamenti_per_fase"
       ]
     }
   ],
@@ -517,6 +542,16 @@
         "path": "gs://dataciviclab-mart/senato-akn/senato_emendamenti/2026/mart_emendamenti_per_atto.parquet",
         "multi_file": false
       }
+    },
+    {
+      "slug": "senato_emendamenti__mart_emendamenti_per_fase",
+      "dataset": "senato_emendamenti",
+      "table": "mart_emendamenti_per_fase",
+      "location": {
+        "type": "gcs",
+        "path": "gs://dataciviclab-mart/senato-akn/senato_emendamenti/2026/mart_emendamenti_per_fase.parquet",
+        "multi_file": false
+      }
     }
   ],
   "signals": [
@@ -528,7 +563,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20261031T160315Z_2a47f0cb",
+        "run_id": "20261031T234501Z_0ff0f54b",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -542,12 +577,12 @@
         },
         "output_bytes": {
           "raw": 33951695,
-          "clean": 33450586,
-          "mart": 51748
+          "clean": 33462234,
+          "mart": 67749
         },
-        "started_at": "2026-10-31T16:03:15.172308+00:00",
-        "finished_at": "2026-10-31T16:03:17.296896+00:00",
-        "duration_seconds": 2.125
+        "started_at": "2026-10-31T23:45:01.122288+00:00",
+        "finished_at": "2026-10-31T23:45:03.251152+00:00",
+        "duration_seconds": 2.129
       }
     },
     {
@@ -558,7 +593,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20261031T160317Z_028ee4f1",
+        "run_id": "20261031T234503Z_584dab60",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -573,11 +608,11 @@
         "output_bytes": {
           "raw": 264705918,
           "clean": 84700005,
-          "mart": 36137
+          "mart": 36180
         },
-        "started_at": "2026-10-31T16:03:17.704609+00:00",
-        "finished_at": "2026-10-31T16:03:23.804734+00:00",
-        "duration_seconds": 6.1
+        "started_at": "2026-10-31T23:45:03.634008+00:00",
+        "finished_at": "2026-10-31T23:45:10.005550+00:00",
+        "duration_seconds": 6.372
       }
     },
     {
@@ -588,7 +623,7 @@
       "detail": "anno 2026 — mart: si",
       "action": "",
       "run": {
-        "run_id": "20261031T160324Z_c06641e7",
+        "run_id": "20261031T234510Z_bf1f4c84",
         "year": 2026,
         "status": "SUCCESS",
         "quality_score": {
@@ -597,17 +632,17 @@
           "mart": 100
         },
         "output_rows": {
-          "clean": 1008234,
-          "mart": 2977
+          "clean": 763690,
+          "mart": 4297
         },
         "output_bytes": {
           "raw": 140938813,
-          "clean": 114641342,
-          "mart": 35918
+          "clean": 175785461,
+          "mart": 64739
         },
-        "started_at": "2026-10-31T16:03:24.196883+00:00",
-        "finished_at": "2026-10-31T16:03:31.967600+00:00",
-        "duration_seconds": 7.771
+        "started_at": "2026-10-31T23:45:10.401512+00:00",
+        "finished_at": "2026-10-31T23:45:22.103112+00:00",
+        "duration_seconds": 11.702
       }
     }
   ],
