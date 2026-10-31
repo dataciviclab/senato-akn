@@ -13,6 +13,10 @@
 -- Il dedup tiene una riga per documento; `n_copie` e `n_atti_dir` espongono la
 -- replica invece di nasconderla. `n_atti_fase` è il numero di directory Atto
 -- della fase (1 = l'atto è attribuibile senza ambiguità).
+--
+-- Sopravvive la riga con `atto_num` più basso (a parità, `path`): è
+-- deterministico ma arbitrario. Chi usa ancora `atto_num` deve saperlo:
+-- per l'attribuzione all'atto usare `fase` (+ `n_atti_fase` per il fallback).
 
 WITH raw AS (
     SELECT
