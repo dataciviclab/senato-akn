@@ -4,7 +4,7 @@ schema_version: 1
 dataset:
   name: "senato_corpus"
   source_id: "senato_akn"
-  description: "Corpus Akoma Ntoso del Senato (ddlpres Leg16–Leg19, ddlmess Leg17–Leg19, ddlcomm Leg16–Leg19): ogni disegno di legge, messaggio e relazione di commissione con famiglia, peso testuale e articoli. Emendamenti e dibattito sono dataset separati. Deriva dall'estrazione XML di senato-akn; atto_num collega a senato_ddl via ddl_url (/ddl/N)."
+  description: "Corpus Akoma Ntoso del Senato (ddlpres Leg16–Leg19, ddlmess Leg17–Leg19, ddlcomm Leg16–Leg19): ogni disegno di legge, messaggio e relazione di commissione con famiglia, peso testuale e articoli. Emendamenti e dibattito sono dataset separati. Deriva dall'estrazione XML di senato-akn; atto_num collega a senato_ddl via ddl_url (/ddl/N), fase (S.NNN) via senato_ddl.fase."
   tags: [politica, senato, corpus, akoma-ntoso, legislativo]
   category: politica
   years: [2026]
@@ -50,7 +50,7 @@ mart:
   validate:
     table_rules:
       mart_per_atto:
-        required_columns: [atto_num, n_documenti, testo_totale]
+        required_columns: [atto_num, fase, legislatura, n_documenti, testo_totale]
         primary_key: [atto_num]
         min_rows: 1000
       mart_per_legislatura:
