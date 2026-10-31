@@ -17,10 +17,11 @@ Kind: `corpus-project`
 
 | Tipologia | Legislature | Note |
 |---|---|---|
-| `ddlpres` | Leg16–Leg19 | Leg16 solo 14 atti |
-| `ddlmess`, `ddlcomm` | Leg17–Leg19 | — |
+| `ddlpres` | Leg16–Leg19 | Leg16: 14 atti |
+| `ddlmess` | Leg17–Leg19 | — |
+| `ddlcomm` | Leg16–Leg19 | Leg16: 9 documenti |
 | `emend`, `emendc` | Leg14–Leg19 | — |
-| `resaula` | Leg17–Leg19 | Leg17: 3 file upstream (1 seduta) |
+| `resaula` | Leg17–Leg19 | Leg17: 1 seduta pubblicata (3 resoconti upstream) |
 | `sommcomm` | Leg18–Leg19 | Leg17: 0 file upstream |
 
 ## Artefatti canonici

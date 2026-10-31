@@ -9,7 +9,7 @@ schema_version: 1
 dataset:
   name: "senato_dibattito"
   source_id: "senato_akn"
-  description: "Ogni intervento parlamentare (Aula `resaula` e Commissione `sommcomm`) dal corpus Akoma Ntoso. Copertura reale Leg18–Leg19; in Leg17 l'upstream ha solo 3 resoconti d'Aula e nessun resoconto di Commissione, Leg14–Leg16 non hanno dibattito. Una riga = un intervento, con oratore (bridge osr:Persona → senato_anagrafica) e testo."
+  description: "Ogni intervento parlamentare (Aula `resaula` e Commissione `sommcomm`) dal corpus Akoma Ntoso. Copertura reale Leg18–Leg19; in Leg17 l'upstream ha solo 3 resoconti d'Aula (1 seduta pubblicata) e nessun resoconto di Commissione, Leg14–Leg16 non hanno dibattito. Una riga = un intervento, con oratore (bridge osr:Persona → senato_anagrafica) e testo."
   tags: [politica, senato, dibattito, interventi, resoconti, oratori]
   category: politica
   years: [2026]

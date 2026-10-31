@@ -16,15 +16,15 @@ scope:
   document_types:
     - ddlpres        # disegni di legge presentati (Leg16–Leg19)
     - ddlmess        # messaggi Camera-Senato (Leg17–Leg19)
-    - ddlcomm        # relazioni commissione (Leg17–Leg19)
+    - ddlcomm        # relazioni commissione (Leg16–Leg19)
     - emend          # emendamenti Aula (Leg14–Leg19)
     - emendc         # emendamenti Commissione (Leg14–Leg19)
     - resaula        # resoconti Aula, parser an:debate (Leg17–Leg19)
     - sommcomm       # resoconti Commissione, parser an:debate (Leg18–Leg19)
   coverage_notes:
     - "Leg14–Leg15: solo emend/emendc"
-    - "Leg16: 14 ddlpres, nessun dibattito"
-    - "Leg17: 3 resoconti Aula e 0 resoconti Commissione nell'upstream"
+    - "Leg16: 14 ddlpres + 9 ddlcomm, nessun dibattito"
+    - "Leg17: 1 seduta Aula pubblicata (3 resoconti nell'upstream), 0 resoconti Commissione"
     - "Leg18–Leg19: corpus completo (atti, emendamenti, dibattito)"
   public_stage: public
 

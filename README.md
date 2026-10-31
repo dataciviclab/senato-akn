@@ -15,14 +15,15 @@ struttura e contenuto dei testi — non solo per numero di atti.
 | **Fonte** | SenatoDellaRepubblica/AkomaNtosoBulkData (clone git, XML Akoma Ntoso) |
 | **Legislature** | Leg14–Leg19 (2001–oggi) |
 | **Disegni di legge** | ~7.700 `ddlpres` (Leg16–Leg19) |
-| **Messaggi e commissione** | ~1.300 `ddlmess` + ~900 `ddlcomm` (Leg17–Leg19) |
+| **Messaggi e commissione** | ~1.300 `ddlmess` (Leg17–Leg19) + ~900 `ddlcomm` (Leg16–Leg19) |
 | **Emendamenti** | ~462.000 Aula (`emend`) + ~543.000 Commissione (`emendc`) |
 | **Dibattito** | ~366.000 interventi (Aula `resaula` + Commissione `sommcomm`) |
 | **Totale** | ≈1,38 milioni di righe pubblicate, ~11 GB di XML upstream |
 
-La copertura non è uniforme (Leg14–15 solo emendamenti, Leg16 solo 14
-`ddlpres`, Leg17 senza resoconti di Commissione e con 3 sole sedute d'Aula):
-il dettaglio è in [`project.yml`](project.yml).
+La copertura non è uniforme: Leg14–15 hanno solo emendamenti, Leg16 14
+`ddlpres` e 9 `ddlcomm`, Leg17 ha 1 sola seduta d'Aula pubblicata (3 resoconti
+nell'upstream) e nessun resoconto di Commissione. Il dettaglio è in
+[`project.yml`](project.yml).
 
 ## Il finding principale
 
