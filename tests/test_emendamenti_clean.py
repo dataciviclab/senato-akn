@@ -102,12 +102,15 @@ def test_stesso_documento_in_piu_atto_dir_diventa_una_riga() -> None:
     copia = by_doc["00404312-em.akn"]
     assert copia[columns.index("n_copie")] == 2
     assert copia[columns.index("n_atti_dir")] == 2
+    assert copia[columns.index("n_atti_fase")] == 2
     assert copia[columns.index("fase")] == "S.10"
     assert copia[columns.index("legislatura")] == "Leg16"
 
     singolo = by_doc["00404313-em.akn"]
     assert singolo[columns.index("n_copie")] == 1
     assert singolo[columns.index("n_atti_dir")] == 1
+    # `n_atti_fase` è per fase, non per documento: la fase S.10 ha 2 dir Atto
+    assert singolo[columns.index("n_atti_fase")] == 2
 
 
 def test_fase_derivata_da_work_uri_e_righe_senza_fase_escluse() -> None:

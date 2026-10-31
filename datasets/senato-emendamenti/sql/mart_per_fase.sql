@@ -7,6 +7,9 @@
 -- Usare QUESTA tabella per le classifiche "atti più emendati".
 -- `mart_per_atto` resta per compatibilità, ma raggruppa per directory `Atto`
 -- e non per atto: l'upstream replica gli stessi emendamenti in più directory.
+--
+-- `n_atti_fase` = directory Atto distinte per la fase: se è 1, il fallback su
+-- `atto_num` è non ambiguo; se è >1 l'attribuzione all'atto deve usare `fase`.
 
 SELECT
     legislatura,
@@ -19,7 +22,7 @@ SELECT
     count(DISTINCT active_ref)                                  AS n_target_distinti,
     min(work_date)                                              AS primo_emendamento,
     max(work_date)                                              AS ultimo_emendamento,
-    max(n_atti_dir)                                             AS n_atti_dir
+    max(n_atti_fase)                                            AS n_atti_fase
 FROM clean_input
 WHERE fase IS NOT NULL
 GROUP BY legislatura, fase

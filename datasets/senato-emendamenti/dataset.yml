@@ -28,7 +28,7 @@ clean:
   read:
     source: auto
     mode: latest
-  required_columns: [fase, emend_id, tipologia, active_ref, text_len, n_copie, n_atti_dir]
+  required_columns: [fase, emend_id, tipologia, active_ref, text_len, n_copie, n_atti_dir, n_atti_fase]
   validate:
     not_null: [fase, emend_id, document_id]
     # una riga = un documento emendamento: (legislatura, fase, document_id).

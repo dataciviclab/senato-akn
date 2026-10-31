@@ -11,7 +11,8 @@
 --     (~+24% righe, fino a 57x su singoli atti).
 --
 -- Il dedup tiene una riga per documento; `n_copie` e `n_atti_dir` espongono la
--- replica invece di nasconderla (e permettono di verificarla).
+-- replica invece di nasconderla. `n_atti_fase` è il numero di directory Atto
+-- della fase (1 = l'atto è attribuibile senza ambiguità).
 
 WITH raw AS (
     SELECT
@@ -62,6 +63,17 @@ copie AS (
         COUNT(DISTINCT atto_num)                AS n_atti_dir
     FROM raw
     GROUP BY 1, 2, 3
+),
+
+-- Numero di directory Atto in cui l'upstream archivia la fase: serve ai
+-- consumer per decidere il fallback su `atto_num` (1 = non ambiguo).
+fasi AS (
+    SELECT
+        legislatura,
+        fase,
+        COUNT(DISTINCT atto_num)                AS n_atti_fase
+    FROM raw
+    GROUP BY 1, 2
 )
 
 SELECT
@@ -83,7 +95,9 @@ SELECT
     d.doc_title,
     d.text_integrale,
     c.n_copie,
-    c.n_atti_dir
+    c.n_atti_dir,
+    f.n_atti_fase
 FROM dedup d
 JOIN copie c USING (legislatura, fase, document_id)
+JOIN fasi f USING (legislatura, fase)
 WHERE d.rn = 1
