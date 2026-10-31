@@ -4,26 +4,39 @@ import re
 
 import streamlit as st
 from lab_connectors.formatters import fmt_num
-from sources import load_mart, query_clean
+from sources import dedup_atti, load_mart, ordina_atti_per_emendamenti, query_clean
 
 # ── Selezione atto ─────────────────────────────────────────────────
 df_mart = load_mart("senato_corpus", "mart_per_atto")
+# un atto pubblico = (legislatura, fase): l'upstream replica lo stesso atto
+# in più directory Atto, quindi atto_num non è univoco per atto.
+df_mart = dedup_atti(df_mart)
+has_fase = {"fase", "legislatura"}.issubset(df_mart.columns)
+
+# ordina per intensità emendativa: il default non deve essere un atto senza
+# emendamenti (prima si apriva sull'atto_num più alto, spesso a 0).
+try:
+    df_em = load_mart("senato_emendamenti", "mart_emendamenti_per_fase")
+    df_mart = ordina_atti_per_emendamenti(df_mart, df_em)
+except Exception:
+    df_mart = df_mart.sort_values("atto_num", ascending=False)
+
 atti = df_mart.dropna(subset=["atto_num"]).copy()
 atti["atto_num"] = atti["atto_num"].astype(int)
-atti = atti.sort_values("atto_num", ascending=False)
 
 # Mappa atto → (fase, legislatura). La chiave dell'atto è `fase` (S.NNN):
 # `atto_num` è l'id interno/directory, che non coincide con la numerazione
 # pubblica. Fallback su atto_num per gli snapshot senza la colonna `fase`.
 fase_by_atto: dict[int, tuple[str, str]] = {}
-if {"fase", "legislatura"}.issubset(atti.columns):
-    for _, row in atti.dropna(subset=["fase"]).iterrows():
+if has_fase:
+    for _, row in atti.iterrows():
         fase_by_atto[int(row["atto_num"])] = (str(row["fase"]), str(row["legislatura"]))
 
 
 def _label(atto: int) -> str:
     fase = fase_by_atto.get(atto)
-    return fase[0] if fase else f"S.{atto}"
+    # il numero S.NNN si ripete tra legislature: serve la legislatura
+    return f"{fase[0]} ({fase[1]})" if fase else f"S.{atto}"
 
 
 atto_num = int(st.selectbox("Seleziona atto", atti["atto_num"].tolist(), format_func=_label))

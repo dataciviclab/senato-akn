@@ -71,6 +71,37 @@ def published_year(slug: str) -> int:
     return current
 
 
+def dedup_atti(df_mart):
+    """Una riga per atto pubblico (legislatura, fase).
+
+    L'upstream replica lo stesso atto in più directory `Atto`: per la lista
+    di selezione si tiene la riga con più documenti.
+    """
+    if not {"fase", "legislatura"}.issubset(df_mart.columns):
+        return df_mart
+    return (
+        df_mart.dropna(subset=["fase"])
+        .sort_values("n_documenti", ascending=False)
+        .drop_duplicates(subset=["legislatura", "fase"])
+    )
+
+
+def ordina_atti_per_emendamenti(df_atti, df_em):
+    """Aggiunge `n_emend` e ordina per intensità emendativa.
+
+    Il default della scheda non deve essere un atto senza emendamenti.
+    """
+    if not {"fase", "legislatura"}.issubset(df_atti.columns):
+        return df_atti.sort_values("atto_num", ascending=False)
+    merged = df_atti.merge(
+        df_em[["legislatura", "fase", "n_emend"]],
+        on=["legislatura", "fase"],
+        how="left",
+    )
+    merged["n_emend"] = merged["n_emend"].fillna(0)
+    return merged.sort_values("n_emend", ascending=False)
+
+
 def is_local_missing(exc: Exception) -> bool:
     """True se l'errore è un file locale mancante (out/ parziale).
 

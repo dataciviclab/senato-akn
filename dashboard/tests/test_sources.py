@@ -7,6 +7,7 @@ pubblicati sotto ``gs://…/senato-akn/<slug>/<anno>/…`` → 404.
 
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 import sources
 from lab_connectors.gcs.paths import https_url
@@ -136,3 +137,40 @@ def test_query_clean_ripiega_su_gcs_se_out_e_parziale(
 
     assert sources.query_clean("senato_dibattito", "SELECT 1", 2095) == "remote"
     assert called["slug"] == "senato_dibattito"
+
+
+def test_dedup_atti_tiene_una_riga_per_fase() -> None:
+    df = pd.DataFrame([
+        {"atto_num": 1, "fase": "S.10", "legislatura": "Leg17", "n_documenti": 2},
+        {"atto_num": 2, "fase": "S.10", "legislatura": "Leg17", "n_documenti": 5},
+        {"atto_num": 3, "fase": "S.20", "legislatura": "Leg17", "n_documenti": 1},
+    ])
+
+    out = sources.dedup_atti(df)
+
+    assert len(out) == 2
+    assert out[out["fase"] == "S.10"].iloc[0]["atto_num"] == 2
+
+
+def test_ordina_atti_mette_prima_chi_ha_emendamenti() -> None:
+    atti = pd.DataFrame([
+        {"atto_num": 1, "fase": "S.1", "legislatura": "Leg17", "n_documenti": 1},
+        {"atto_num": 2, "fase": "S.2", "legislatura": "Leg17", "n_documenti": 1},
+    ])
+    em = pd.DataFrame([{"legislatura": "Leg17", "fase": "S.2", "n_emend": 10}])
+
+    out = sources.ordina_atti_per_emendamenti(atti, em)
+
+    assert out.iloc[0]["fase"] == "S.2"
+    assert out[out["fase"] == "S.1"].iloc[0]["n_emend"] == 0
+
+
+def test_ordina_atti_senza_fase_usa_atto_num() -> None:
+    atti = pd.DataFrame([
+        {"atto_num": 1, "n_documenti": 1},
+        {"atto_num": 2, "n_documenti": 1},
+    ])
+
+    out = sources.ordina_atti_per_emendamenti(atti, pd.DataFrame())
+
+    assert out.iloc[0]["atto_num"] == 2
