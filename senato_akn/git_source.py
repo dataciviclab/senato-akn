@@ -21,7 +21,7 @@ REPO_URL = "https://github.com/SenatoDellaRepubblica/AkomaNtosoBulkData.git"
 REPO_BRANCH = "master"
 
 
-def _run(cwd: Path, *args: str) -> subprocess.CompletedProcess:
+def _run(cwd: str | Path, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
         ["git", *args],
         cwd=cwd,

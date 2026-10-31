@@ -3,6 +3,7 @@ import subprocess
 from pathlib import Path
 
 import pyarrow.parquet as pq
+
 from senato_akn.extract import (
     _all_tipologie,
     _default_out_path,

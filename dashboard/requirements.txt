@@ -2,7 +2,8 @@
 # Aggiorna l'extra nel pyproject e mantieni questo file sincronizzato.
 # Streamlit Community Cloud legge solo requirements.txt.
 streamlit>=1.61
-duckdb>=1.5.3
+plotly>=5.18
 altair>=6.2
 pandas>=3.0
-dataciviclab-toolkit @ git+https://github.com/dataciviclab/toolkit.git
+duckdb>=1.5.3,<2
+lab-connectors[duckdb] @ git+https://github.com/dataciviclab/lab-connectors.git

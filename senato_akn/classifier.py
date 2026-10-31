@@ -5,8 +5,6 @@ Non richiede ML — basta una mappa regole.
 """
 from __future__ import annotations
 
-import re
-
 # Regole: (keyword, label) ordinate per specificità decrescente
 _RULES: list[tuple[str, str]] = [
     # Bilancio

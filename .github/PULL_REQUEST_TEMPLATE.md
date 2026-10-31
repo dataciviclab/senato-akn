@@ -4,9 +4,8 @@ Descrivi in una riga cosa fa questa PR.
 
 ## Verifica
 
-- [ ] I CSV derivati sono aggiornati (se applicabile)
-- [ ] Lo script di estrazione funziona con `make extract`
-- [ ] Lo script di summary funziona con `make summarize`
+- [ ] L'estrazione funziona con `make extract`
+- [ ] I dataset toolkit funzionano con `make check` (preflight) e `make run`
 
 ## Impatto downstream
 

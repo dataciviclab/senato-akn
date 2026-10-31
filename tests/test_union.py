@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
+
 from scripts.union_legislatures import find_available_legislatures, union_type
 
 

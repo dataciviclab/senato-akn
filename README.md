@@ -1,122 +1,134 @@
 # senato-akn — Il lavoro del Senato in formato strutturato
 
-**La decretazione d'urgenza occupa quasi un terzo del testo legislativo del Senato, pur essendo solo il 7% degli atti. Lo vediamo perché misuriamo il lavoro parlamentare non per numero, ma per peso.**
+[![test](https://github.com/dataciviclab/senato-akn/actions/workflows/test.yml/badge.svg)](https://github.com/dataciviclab/senato-akn/actions/workflows/test.yml)
 
-Questo progetto estrae ed esplora il corpus legislativo del Senato della
-Repubblica in formato standard Akoma Ntoso (XML). L'obiettivo è capire cosa
-contiene davvero il lavoro legislativo — misurato per **peso documentale**,
-struttura e contenuto dei testi.
+**La decretazione d'urgenza pesa circa un terzo del testo legislativo del Senato pur essendo meno del 10% degli atti. I bilanci, quasi invisibili nel conteggio, pesano oltre dieci volte il loro numero.**
+
+Questo progetto estrae ed esplora il corpus legislativo del Senato in formato
+Akoma Ntoso (XML) per misurare il lavoro legislativo per **peso documentale**,
+struttura e contenuto dei testi — non solo per numero di atti.
 
 ## Cosa contiene
 
 | | |
 |---|---|
-| **Fonte** | SenatoDellaRepubblica/AkomaNtosoBulkData |
-| **Legislature** | Leg14–Leg19 (2001-oggi) |
-| **Documenti estratti** | ddlpres (7.654) · emend (1.002.476) · emendc ( vari) · ddlmess (952) · ddlcomm (699) |
-| **Dibattito** | resaula (1.753) · sommcomm (13.865) — parser `an:debate` |
-| **Totale** | ~1.183.000 file XML, ~14 GB su disco |
+| **Fonte** | SenatoDellaRepubblica/AkomaNtosoBulkData (clone git, XML Akoma Ntoso) |
+| **Legislature** | Leg14–Leg19 (2001–oggi) |
+| **Disegni di legge** | ~7.700 `ddlpres` (Leg16–Leg19) |
+| **Messaggi e commissione** | ~1.300 `ddlmess` (Leg17–Leg19) + ~900 `ddlcomm` (Leg16–Leg19) |
+| **Emendamenti** | ~462.000 Aula (`emend`) + ~543.000 Commissione (`emendc`) |
+| **Dibattito** | ~366.000 interventi (Aula `resaula` + Commissione `sommcomm`) |
+| **Totale** | ≈1,38 milioni di righe pubblicate, ~11 GB di XML upstream |
 
-## Finding principale
+La copertura non è uniforme: Leg14–15 hanno solo emendamenti, Leg16 14
+`ddlpres` e 9 `ddlcomm`, Leg17 ha 1 sola seduta d'Aula pubblicata (3 resoconti
+nell'upstream) e nessun resoconto di Commissione. Il dettaglio è in
+[`project.yml`](project.yml).
 
-Nel corpus `Leg19/ddlpres`, poche famiglie di testi concentrano una quota
-sproporzionata della massa documentale:
+## Il finding principale
 
-| Famiglia | % atti | % testo | Rapporto |
+Nel corpus `Leg19/ddlpres` poche famiglie concentrano una quota sproporzionata
+della massa documentale:
+
+| Famiglia | % documenti | % testo | Rapporto |
 |---|---|---|---|
-| **Decreto-like** (decreti-legge, conversioni) | 6.99% | 29.94% | 4.28× |
-| **Bilancio** | 0.57% | 7.58% | 13.37× |
-| **Delega** | 6.33% | 8.96% | 1.42× |
-| **Istituzione** | 14.08% | 7.55% | 0.54× |
-| **Ratifica** | 5.01% | 1.09% | 0.22× |
+| **Bilancio** | <1% | ≈8% | **≈11×** |
+| **Decreto-like** | ≈9% | ≈1/3 | **≈3,7×** |
+| Delega | ≈7% | ≈9% | ≈1,3× |
+| Istituzione | ≈14% | ≈7% | ≈0,5× |
+| Ratifica | ≈5% | ≈1% | ≈0,2× |
 
-**I bilanci, quasi invisibili nel conteggio (0.57%), pesano 13× più del loro numero.**
-In alcuni mesi, i decreti superano il 60% del testo totale pur essendo meno del 15% degli atti.
+Le cifre sono volutamente **arrotondate e senza data**: il corpus si aggiorna
+ogni mese (schedule il 1°), quindi i valori puntuali decadono. Lo snapshot è
+tracciato da `updated_at` in [`registry/registry.json`](registry/registry.json);
+la tabella esatta si rigenera in un comando:
+
+```bash
+make findings ARGS="--parquet https://storage.googleapis.com/dataciviclab-clean/senato-akn/senato_corpus/2026/senato_corpus_2026_clean.parquet"
+```
+
+Le famiglie sono multi-valore (`delega;norme_generali`): un documento può
+appartenere a più famiglie, quindi le percentuali **non sono esclusive** e la
+loro somma può superare il 100%. In alcuni mesi i decreti superano il 60% del
+testo: è accaduto ad aprile 2024 (≈67%) e giugno 2023 (≈63%).
 
 ## Esempi di domande
 
 - **Quanto pesa davvero la decretazione d'urgenza rispetto alle leggi ordinarie?**
 - **Quali tipologie di atti producono più volume testuale per singolo documento?**
 - **Come varia il lavoro legislativo mese per mese?**
-- **Cosa c'è nei 43.185 emendamenti di Commissione non ancora parsati?**
 - **Quali proposte di legge diventano effettivamente legge?**
+- **Chi parla, e quanto, nelle aule e nelle commissioni?**
 
 ## Tre modi per accedere ai dati
 
-### 1. Via GitHub Artifact
+### 1. Catalogo e MCP del Lab
 
-I parquet derivati sono disponibili come GitHub Artifact del workflow `pipeline`
-(mode `full` → Actions → download). Non sono in git.
+- [Explorer](https://explorer.dataciviclab.org): `senato_corpus`, `senato_dibattito`
+  e `senato_emendamenti` sono nel catalogo e nella ricerca
+- MCP: `gcs_query(slug="senato_corpus", sql="SELECT count(*) AS n FROM _data")`
 
-### 2. Via SQL su parquet
+### 2. SQL sui parquet pubblicati
+
+Clean su `gs://dataciviclab-clean/senato-akn/`, mart aggregati su
+`gs://dataciviclab-mart/senato-akn/` (percorsi canonici in
+`registry/registry.json`), leggibili via HTTPS:
 
 ```python
 import duckdb
 duckdb.sql("""
-    SELECT famiglia, COUNT(*) AS n_atti, SUM(text_len) AS volume
-    FROM read_parquet('data/derived/leg19_ddlpres_v0.parquet')
-    GROUP BY famiglia
-    ORDER BY volume DESC
+    SELECT famiglia, n_documenti, pct_testo
+    FROM read_parquet('https://storage.googleapis.com/dataciviclab-mart/senato-akn/senato_corpus/2026/mart_famiglie.parquet')
+    ORDER BY pct_testo DESC
 """).show()
 ```
 
-### 3. Via estrazione locale
+### 3. Estrazione locale
 
 La sorgente è un clone git dell'upstream (`git_source`): il primo run clona
-e materializza la legislatura (download via pack, ~2 min), i successivi
-fanno `git fetch` (delta) e parsano da disco (~1 ms/file).
+e materializza la legislatura (download via pack, ~2 min), i successivi fanno
+`git fetch` (delta) e parsano da disco (~1 ms/file).
 
 ```bash
 pip install -e ".[dev]"
 python3 scripts/extract.py              # Leg19/ddlpres (clone git + parse)
-python3 scripts/extract.py --tipologie ddlpres,emend,emendc,ddlmess,ddlcomm  # full parsabile
-python3 scripts/extract.py --incremental   # delta: solo i file cambiati (manifest + snapshot)
+python3 scripts/extract.py --tipologie ddlpres,emend,emendc,ddlmess,ddlcomm
+python3 scripts/extract.py --incremental   # delta: solo i file cambiati
 ```
 
 ## Partecipa
 
-- **Hai una domanda sul lavoro del Senato?** Apri una [Discussion](https://github.com/orgs/dataciviclab/discussions/new?category=Domanda)
-- **Vuoi contribuire?** Issues per bug, PR per script e parsing
+**Hai una domanda sul lavoro del Senato?** Apri una
+[Discussion](https://github.com/orgs/dataciviclab/discussions/new?category=Domanda) —
+per bug e parsing, issue e PR sono aperte.
 
 ## Stato
 
-- **Ingest via git** (`git_source`): clone `blob:none` + sparse della
-  legislatura. La GitHub tree API tronca oltre ~100k entry — l'estrazione
-  HTTP scopriva solo ~46% dei file; con git il corpus è completo.
-- **Multi-legislatura**: Leg14–Leg19 estratte e unificate. Clone condiviso
-  con `sparse-checkout add` per aggiungere legislature senza perdere le
-  precedenti. Leg14–Leg15 hanno solo emendamenti; Leg16 ha 14 ddlpres;
-  Leg17–Leg19 hanno il corpus completo.
-- **Estrazione**: clone ~5-6 min (una tantum per tutte le legislature),
-  fetch delta ~11 s, parsing ~1 ms/file. Delta incrementale via
-  `--incremental` (manifest path→sha + merge del parquet).
-- **Layer toolkit**: 3 dataset (`senato-corpus`, `senato-dibattito`,
-  `senato-emendamenti`) — raw→clean→mart. Bridge verso `senato_ddl` (atto_num)
-  e `senato_anagrafica` (persona_id). Pubblicati su GCS (clean + mart).
-- **Dibattito**: parser `an:debate`, una riga per intervento con oratore
-  (bridge `osr:Persona` → `senato_anagrafica`). ~360k interventi tra Aula e
-  Commissione (Leg17–Leg19).
-- **Namespace**: parser supporta CSD02 (Leg13–Leg16) e CSD03 (Leg17+).
+- **Ingest via git** (`git_source`): clone `blob:none` + sparse. La tree API
+  di GitHub tronca oltre ~100k entry (via HTTP si copriva ~46% dei file);
+  con git il corpus è completo.
+- **Multi-legislatura**: Leg14–Leg19 estratte e unificate; `sparse-checkout add`
+  per aggiungere legislature senza perdere le altre.
+- **Parser**: `ddlpres`, `ddlmess`, `ddlcomm`, `emend`, `emendc`, `resaula`,
+  `sommcomm` (namespace CSD02 per Leg13–Leg16, CSD03 per Leg17+).
+- **Layer toolkit**: 3 dataset raw→clean→mart su GCS, con bridge verso
+  `senato_ddl` (atto_num) e `senato_anagrafica` (persona_id).
+- **Refresh**: mensile e completo (clone + parse, ~25 min): i parquet derivati
+  non sopravvivono al runner, quindi l'estrazione è full, non incrementale.
 
-## Prossimi passi
-
-1. Bridge dibattito → interventi in open-politica (testo accanto ai metadati)
-2. Incrocio con italia-corpus: proposto (Senato) vs legge (vigente) — [F5](https://github.com/dataciviclab/senato-akn/issues/15)
-
-## Strategia di estrazione
-
-- **Una tantum**: Leg14–Leg18 (storiche, non cambiano) — estratte e salvate
-- **Mensile**: Leg19 (attiva, nuovi atti ogni mese) — estrazione incrementale
-- **Pipeline**: solo Leg19 nel loop mensile; le legislature storiche restano fisse
+**Prossimi passi**: bridge dibattito → interventi in open-politica; incrocio
+proposto (Senato) vs legge vigente con italia-corpus — [F5](https://github.com/dataciviclab/senato-akn/issues/15).
 
 ## Architettura
 
 ```
-scripts/          # extract.py, union_legislatures.py
-senato_akn/       # core: extract, git_source, parser, classifier, summarize
+scripts/          # extract.py, union_legislatures.py, findings.py
+senato_akn/       # core: extract, git_source, parser, classifier
+datasets/         # 3 dataset.yml (senato-corpus, senato-dibattito, senato-emendamenti)
+dashboard/        # Streamlit (7 pagine) su GCS via lab-connectors
 data/raw/akn/     # clone git upstream (gitignored) — il "download" è via pack
-data/derived/     # parquet + manifest generati (gitignored, GitHub Artifact)
-.github/workflows/# test (CI), pipeline (extract→toolkit→GCS→registry)
+data/derived/     # parquet + manifest generati (gitignored, effimeri)
+.github/workflows/# test (CI), pipeline (estrazione → toolkit → GCS → registry)
 ```
 
 ## Licenza

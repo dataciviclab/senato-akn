@@ -9,7 +9,7 @@ $(VENV):
 
 .PHONY: install
 install: $(VENV)
-	$(VENV_PYTHON) -m pip install -e ".[dev]"
+	$(VENV_PYTHON) -m pip install -e ".[dev,pipeline]"
 
 # --- Estrazione (sorgente: clone git upstream, git_source) ---
 
@@ -55,9 +55,11 @@ union:
 .PHONY: extract-union
 extract-union: extract-all union
 
-.PHONY: summarize
-summarize:
-	@echo "build_summaries.py rimosso — le aggregazioni sono nei mart SQL"
+# Ricalcola il finding per famiglia (le cifre del README sono arrotondate:
+# questo è il comando per aggiornarle/verificarle).
+.PHONY: findings
+findings:
+	$(PYTHON) scripts/findings.py $(ARGS)
 
 # --- Layer toolkit (raw local_file -> clean -> mart) ---
 
@@ -91,21 +93,26 @@ check-senato-emendamenti:
 .PHONY: check-all
 check-all: check-senato-corpus check-senato-dibattito check-senato-emendamenti
 
+# Alias standard (repo dataset: check / run / clean)
+.PHONY: check run
+check: check-all
+run: run-all
+
 .PHONY: all
-all: extract summarize
+all: extract
 
 # --- Test (richiede make install prima) ---
 
 .PHONY: test
 test: install
-	$(VENV_PYTHON) -m pytest tests/ -v --tb=short
+	$(VENV_PYTHON) -m pytest tests/ dashboard/tests -v --tb=short
 
 # --- CI (auto-sufficiente da checkout pulito) ---
 
 .PHONY: ci
 ci: install
-	$(VENV_PYTHON) -m pytest tests/ -v --tb=short
-	# smoke: mini repo git + extract + summarize (nessuna rete)
+	$(VENV_PYTHON) -m pytest tests/ dashboard/tests -v --tb=short
+	# smoke: mini repo git + extract (nessuna rete)
 	rm -rf /tmp/senato-smoke
 	mkdir -p /tmp/senato-smoke/Leg19/Atto00055177/ddlpres
 	cp tests/fixtures/sample.akn.xml \

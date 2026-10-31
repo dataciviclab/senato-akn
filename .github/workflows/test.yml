@@ -1,4 +1,5 @@
 name: test
+
 on:
   pull_request:
     paths:
@@ -6,6 +7,7 @@ on:
       - "Makefile"
       - "pyproject.toml"
       - "requirements.txt"
+      - "datasets/**"
   push:
     branches: [main]
     paths:
@@ -13,6 +15,7 @@ on:
       - "Makefile"
       - "pyproject.toml"
       - "requirements.txt"
+      - "datasets/**"
 
 jobs:
   test:
@@ -20,10 +23,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dataciviclab/.github/actions/python-setup@main
+        with:
+          # `dashboard` serve ai test della dashboard (streamlit + lab-connectors)
+          install-extras: "dev,dashboard"
 
-      - name: Run tests
-        run: |
-          python3 -m pytest tests/ -v --tb=short
+      - uses: dataciviclab/.github/actions/python-ci@main
+        with:
+          lint_paths: "senato_akn scripts tests dashboard"
+          mypy_paths: "senato_akn scripts"
+          test_dir: "tests dashboard/tests"
+          pytest_args: "-q"
 
       - name: CI smoke (extract da mini repo git)
         run: |
