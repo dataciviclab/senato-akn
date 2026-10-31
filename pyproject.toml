@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,27 +9,40 @@ description = "Corpus legislativo del Senato in formato Akoma Ntoso"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
-authors = [{name = "DataCivicLab"}]
+authors = [{ name = "DataCivicLab" }]
+
+# Dipendenze runtime dirette: pyarrow (parquet del corpus), duckdb (union e findings).
 dependencies = [
-    "dataciviclab-toolkit @ git+https://github.com/dataciviclab/toolkit.git",
+    "duckdb>=1.5.3,<2",
     "pyarrow>=15.0.0",
 ]
 
-[tool.setuptools.packages.find]
-include = ["senato_akn*"]
-
 [project.optional-dependencies]
+# Il toolkit è usato solo come CLI (`python -m toolkit.cli.app`), non importato.
+pipeline = [
+    "dataciviclab-toolkit @ git+https://github.com/dataciviclab/toolkit.git",
+]
 dev = [
+    "mypy>=1.20",
     "pytest>=8.0.0",
+    "pytest-timeout>=2.3.0",
+    "ruff>=0.5",
 ]
 dashboard = [
     "streamlit>=1.61",
     "plotly>=5.18",
     "altair>=6.2",
     "pandas>=3.0",
-    "duckdb>=1.5.3",
-    "dataciviclab-toolkit @ git+https://github.com/dataciviclab/toolkit.git",
+    "duckdb>=1.5.3,<2",
+    "lab-connectors[duckdb] @ git+https://github.com/dataciviclab/lab-connectors.git",
 ]
+
+[project.urls]
+Repository = "https://github.com/dataciviclab/senato-akn"
+
+[tool.setuptools.packages.find]
+include = ["senato_akn*"]
+exclude = ["tests*", "dashboard*", "scripts*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

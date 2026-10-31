@@ -18,8 +18,8 @@ raw:
     - name: "corpus_parquet"
       type: "local_file"
       args:
-        path: "../../data/derived/leg_unified_ddlpres_v0.parquet"
-        filename: "leg_unified_ddlpres_v0.parquet"
+        path: "../../data/derived/leg_unified_corpus_v0.parquet"
+        filename: "leg_unified_corpus_v0.parquet"
       primary: true
 
 clean:

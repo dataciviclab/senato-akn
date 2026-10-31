@@ -19,9 +19,9 @@ from typing import Any
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from senato_akn.classifier import classify
 from senato_akn.git_source import list_entries, read_local
 from senato_akn.parser import parse_xml
-from senato_akn.classifier import classify
 
 logger = logging.getLogger("senato_akn.extract")
 
@@ -238,7 +238,7 @@ def run_extract(
                 logger.info("parsed %d/%d", idx, total)
                 print(f"parsed {idx}/{total}")
 
-    if delta_mode:
+    if delta_mode and existing_parquet is not None:
         existing = pq.read_table(Path(existing_parquet)).to_pylist()
         rows = [r for r in existing if r.get("path") not in changed_set] + rows
 

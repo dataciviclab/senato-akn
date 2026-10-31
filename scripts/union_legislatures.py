@@ -11,6 +11,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 
 import duckdb
@@ -21,6 +22,14 @@ logging.basicConfig(
     format="%(levelname)s [%(name)s] %(message)s",
 )
 logger = logging.getLogger("union_legislatures")
+
+
+def _count(con: duckdb.DuckDBPyConnection, sql: str) -> int:
+    """Esegue una COUNT e restituisce l'intero (``fetchone()`` può essere None)."""
+    row = con.execute(sql).fetchone()
+    if row is None:
+        raise RuntimeError(f"query senza risultato: {sql}")
+    return int(row[0])
 
 DERIVED_DIR = Path(__file__).resolve().parents[1] / "data" / "derived"
 
@@ -44,7 +53,7 @@ PER_LEG_PATTERNS = {
 }
 
 UNIFIED_OUTPUTS = {
-    "corpus": "leg_unified_ddlpres_v0.parquet",
+    "corpus": "leg_unified_corpus_v0.parquet",
     "emend": "leg_unified_emend_emendc_v0.parquet",
     "dibattito": "leg_unified_resaula_sommcomm_v0.parquet",
 }
@@ -74,7 +83,13 @@ def union_type(
     for pattern in patterns:
         for p in sorted(DERIVED_DIR.glob(pattern)):
             try:
-                n = con.execute(f"SELECT COUNT(*) FROM read_parquet('{p}')").fetchone()[0]
+                # Un parquet scritto senza righe ha 0 colonne e DuckDB lo
+                # rifiuta ("Need at least one non-root column"): lo si
+                # riconosce dallo schema, non dalla dimensione del file.
+                if not pq.read_schema(p).names:
+                    logger.info("  %s: vuoto, salto", p.name)
+                    continue
+                n = _count(con, f"SELECT COUNT(*) FROM read_parquet('{p}')")
                 if n == 0:
                     logger.info("  %s: vuoto, salto", p.name)
                     continue
@@ -108,7 +123,7 @@ def union_type(
         r[1] for r in con.execute("PRAGMA table_info('_all')").fetchall()
     ]
     if has_path:
-        before = con.execute("SELECT COUNT(*) FROM _all").fetchone()[0]
+        before = _count(con, "SELECT COUNT(*) FROM _all")
         con.execute("""
             DELETE FROM _all
             WHERE rowid IN (
@@ -120,7 +135,7 @@ def union_type(
                 GROUP BY path
             )
         """)
-        after = con.execute("SELECT COUNT(*) FROM _all").fetchone()[0]
+        after = _count(con, "SELECT COUNT(*) FROM _all")
         if before != after:
             logger.info("  Dedup: %d → %d (-%d)", before, after, before - after)
 
@@ -128,9 +143,9 @@ def union_type(
     if drop_zero_text and "text_len" in [
         r[1] for r in con.execute("PRAGMA table_info('_all')").fetchall()
     ]:
-        before = con.execute("SELECT COUNT(*) FROM _all").fetchone()[0]
+        before = _count(con, "SELECT COUNT(*) FROM _all")
         con.execute("DELETE FROM _all WHERE text_len IS NOT NULL AND text_len <= 0")
-        after = con.execute("SELECT COUNT(*) FROM _all").fetchone()[0]
+        after = _count(con, "SELECT COUNT(*) FROM _all")
         if before != after:
             logger.info("  Filtro text_len>0: %d → %d", before, after)
 
@@ -139,8 +154,6 @@ def union_type(
     tmp_out = str(output_path) + ".tmp.parquet"
     con.execute(f"COPY _all TO '{tmp_out}' (FORMAT PARQUET, COMPRESSION ZSTD)")
     con.close()
-
-    import os
 
     os.replace(tmp_out, output_path)
     final = pq.read_metadata(output_path).num_rows

@@ -9,7 +9,7 @@ $(VENV):
 
 .PHONY: install
 install: $(VENV)
-	$(VENV_PYTHON) -m pip install -e ".[dev]"
+	$(VENV_PYTHON) -m pip install -e ".[dev,pipeline]"
 
 # --- Estrazione (sorgente: clone git upstream, git_source) ---
 
@@ -55,10 +55,6 @@ union:
 .PHONY: extract-union
 extract-union: extract-all union
 
-.PHONY: summarize
-summarize:
-	@echo "build_summaries.py rimosso — le aggregazioni sono nei mart SQL"
-
 # Ricalcola il finding per famiglia (le cifre del README sono arrotondate:
 # questo è il comando per aggiornarle/verificarle).
 .PHONY: findings
@@ -97,8 +93,13 @@ check-senato-emendamenti:
 .PHONY: check-all
 check-all: check-senato-corpus check-senato-dibattito check-senato-emendamenti
 
+# Alias standard (repo dataset: check / run / clean)
+.PHONY: check run
+check: check-all
+run: run-all
+
 .PHONY: all
-all: extract summarize
+all: extract
 
 # --- Test (richiede make install prima) ---
 

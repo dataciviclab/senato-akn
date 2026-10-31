@@ -8,7 +8,7 @@ arrotondate e datate. Questo script è la fonte autorevole per aggiornarle
 Usage:
     python3 scripts/findings.py
     python3 scripts/findings.py --legislatura Leg18
-    python3 scripts/findings.py --parquet data/derived/leg_unified_ddlpres_v0.parquet
+    python3 scripts/findings.py --parquet data/derived/leg_unified_corpus_v0.parquet
     python3 scripts/findings.py --json
 """
 
@@ -21,7 +21,7 @@ from pathlib import Path
 
 import duckdb
 
-DEFAULT_PARQUET = "data/derived/leg_unified_ddlpres_v0.parquet"
+DEFAULT_PARQUET = "data/derived/leg_unified_corpus_v0.parquet"
 
 _SQL = """
 WITH base AS (
