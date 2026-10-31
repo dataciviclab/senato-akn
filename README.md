@@ -16,12 +16,16 @@ struttura e contenuto dei testi — non solo per numero di atti.
 | **Legislature** | Leg14–Leg19 (2001–oggi) |
 | **Disegni di legge** | ~7.700 `ddlpres` (Leg16–Leg19) |
 | **Messaggi e commissione** | ~1.350 `ddlmess` (Leg17–Leg19) + ~900 `ddlcomm` (Leg16–Leg19) |
-| **Emendamenti** | ~463.000 Aula (`emend`) + ~545.000 Commissione (`emendc`) |
+| **Emendamenti** | ~386.000 Aula (`emend`) + ~378.000 Commissione (`emendc`) |
 | **Dibattito** | ~370.000 interventi (Aula `resaula` + Commissione `sommcomm`) |
-| **Totale** | ≈1,39 milioni di righe pubblicate, ~11 GB di XML upstream |
+| **Totale** | ≈1,14 milioni di righe pubblicate, ~11 GB di XML upstream |
 
 Conteggi arrotondati: i valori puntuali dello snapshot corrente sono in
 [`registry/registry.json`](registry/registry.json) (`output_rows.clean`).
+Gli emendamenti sono deduplicati dalle copie che l'upstream replica in più
+directory `Atto` (−24% righe, fino a 57 copie sullo stesso documento); la
+`fase` (S.NNN) è la chiave dell'atto. Corpus e dibattito restano a livello di
+documento/intervento.
 
 La copertura non è uniforme: Leg14–15 hanno solo emendamenti, Leg16 14
 `ddlpres` e 9 `ddlcomm`, Leg17 ha 1 sola seduta d'Aula pubblicata (3 resoconti

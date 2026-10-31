@@ -34,7 +34,9 @@ Script:
 Pubblicato su GCS (clean + mart):
 - `senato_corpus` — atti (ddlpres/ddlmess/ddlcomm) con famiglia, testo, articoli
 - `senato_dibattito` — un intervento per riga, con oratore
-- `senato_emendamenti` — un emendamento per riga, con fase dell'atto
+- `senato_emendamenti` — un emendamento per riga (dedup dalle copie upstream),
+  con `fase` (S.NNN) come chiave dell'atto; `mart_emendamenti_per_fase` è la
+  classifica canonica (non `mart_emendamenti_per_atto`, che è per directory)
 
 Locale (gitignored, effimero):
 - `data/derived/leg{leg}_{tipi}_v0.parquet` + `.manifest.json`
@@ -63,6 +65,10 @@ letto dal registry; cache 1h.
 - 10 documenti Leg17 con `work_date` pre-2013 (probabile errore upstream)
 - `pct_documenti`/`pct_testo` in `mart_famiglie` non sono esclusive: la somma
   può superare il 100% (documenti multi-famiglia)
+- `senato_corpus` ha ancora 580 righe duplicate per `document_id` (documenti
+  multi-atto: stesso `ddlcomm` sotto più Atto dir) — dedup da decidere
+- open-politica (`mart_intensita_emendativa`) aggancia gli emendamenti su
+  `atto_num`: per le fasi replicate va spostato su `fase`
 
 ## Prossimi passi
 
