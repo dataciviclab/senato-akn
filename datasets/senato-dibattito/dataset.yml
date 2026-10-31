@@ -1,4 +1,4 @@
-# Dibattito parlamentare (Leg14–Leg19) — resoconti Aula (resaula) + Commissione (sommcomm)
+# Dibattito parlamentare (Leg18–Leg19, + 1 seduta Leg17) — resoconti Aula (resaula) + Commissione (sommcomm)
 #
 # Il "chi parla e cosa dice" del Senato: ogni intervento (speech) con oratore.
 # Parser an:debate (debateBody → debateSection → speech by=#pNNNN → from).
@@ -9,7 +9,7 @@ schema_version: 1
 dataset:
   name: "senato_dibattito"
   source_id: "senato_akn"
-  description: "Ogni intervento parlamentare nelle legislature Leg14–Leg19 (Aula `resaula` e Commissione `sommcomm`), dal corpus Akoma Ntoso. Una riga = un intervento, con oratore (bridge osr:Persona → senato_anagrafica) e testo."
+  description: "Ogni intervento parlamentare (Aula `resaula` e Commissione `sommcomm`) dal corpus Akoma Ntoso. Copertura reale Leg18–Leg19; in Leg17 l'upstream ha solo 3 resoconti d'Aula e nessun resoconto di Commissione, Leg14–Leg16 non hanno dibattito. Una riga = un intervento, con oratore (bridge osr:Persona → senato_anagrafica) e testo."
   tags: [politica, senato, dibattito, interventi, resoconti, oratori]
   category: politica
   years: [2026]

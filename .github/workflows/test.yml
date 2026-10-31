@@ -23,7 +23,7 @@ jobs:
 
       - name: Run tests
         run: |
-          python3 -m pytest tests/ -v --tb=short
+          python3 -m pytest tests/ dashboard/tests -v --tb=short
 
       - name: CI smoke (extract da mini repo git)
         run: |

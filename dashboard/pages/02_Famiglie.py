@@ -6,6 +6,10 @@ from sources import load_mart, query_clean
 
 st.title("📁 Famiglie Legislative")
 st.markdown("Distribuzione degli atti per famiglia legislativa — conteggio vs peso testuale.")
+st.caption(
+    "Un documento può appartenere a più famiglie: le percentuali non sono "
+    "esclusive e la loro somma può superare il 100%."
+)
 
 # ── Carica dati ─────────────────────────────────────────────────────
 df_fam = load_mart("senato_corpus", "mart_famiglie")
@@ -14,6 +18,12 @@ df_per_atto = load_mart("senato_corpus", "mart_per_atto")
 if df_fam.empty:
     st.warning("Nessun dato disponibile.")
     st.stop()
+
+# Compat: gli snapshot pubblicati prima dell'esplosione delle famiglie non
+# hanno `pct_documenti`. Fallback sul totale documenti del mart per atto.
+if "pct_documenti" not in df_fam.columns:
+    tot_documenti = int(df_per_atto["n_documenti"].sum()) or 1
+    df_fam["pct_documenti"] = round(100 * df_fam["n_documenti"] / tot_documenti, 1)
 
 # ── Distribuzione per famiglia ────────────────────────────────────
 st.subheader("Distribuzione per famiglia")
@@ -44,10 +54,11 @@ col1, col2 = st.columns(2)
 with col1:
     st.markdown("**Per numero di documenti**")
     st.dataframe(
-        df_fam[["famiglia", "n_documenti", "pct_testo"]].rename(
+        df_fam[["famiglia", "n_documenti", "pct_documenti", "pct_testo"]].rename(
             columns={
                 "famiglia": "Famiglia",
                 "n_documenti": "Documenti",
+                "pct_documenti": "% Documenti",
                 "pct_testo": "% Testo",
             }
         ),

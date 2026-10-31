@@ -68,6 +68,11 @@ with col_right:
         )
         st.altair_chart(chart2, width='stretch')
 
+st.caption(
+    "Famiglie esplose: un documento può averne più di una, quindi i conteggi "
+    "non sono esclusivi (la somma può superare il totale documenti)."
+)
+
 # ── Il finding chiave ──────────────────────────────────────────────
 st.markdown("---")
 st.subheader("Il peso nascosto dei bilanci")

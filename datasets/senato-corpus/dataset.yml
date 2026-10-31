@@ -4,7 +4,7 @@ schema_version: 1
 dataset:
   name: "senato_corpus"
   source_id: "senato_akn"
-  description: "Corpus Akoma Ntoso del Senato (Leg14–Leg19): ogni documento legislativo (ddlpres, emend, ddlcomm, ddlmess) con famiglia, peso testuale e articoli. Deriva dall'estrazione XML di senato-akn; atto_num collega a senato_ddl via ddl_url (/ddl/N)."
+  description: "Corpus Akoma Ntoso del Senato (ddlpres Leg16–Leg19, ddlmess/ddlcomm Leg17–Leg19): ogni disegno di legge, messaggio e relazione di commissione con famiglia, peso testuale e articoli. Emendamenti e dibattito sono dataset separati. Deriva dall'estrazione XML di senato-akn; atto_num collega a senato_ddl via ddl_url (/ddl/N)."
   tags: [politica, senato, corpus, akoma-ntoso, legislativo]
   category: politica
   years: [2026]
@@ -57,8 +57,10 @@ mart:
         required_columns: [legislatura, n_documenti, testo_totale, n_atti]
         primary_key: [legislatura]
         min_rows: 3
+      # una riga per famiglia, con `famiglia` esplosa dal valore multi-valore.
+      # Le percentuali non sono esclusive (un documento può avere più famiglie).
       mart_famiglie:
-        required_columns: [famiglia, n_documenti, testo_totale]
+        required_columns: [famiglia, n_documenti, testo_totale, pct_documenti, pct_testo]
         primary_key: [famiglia]
         min_rows: 3
 

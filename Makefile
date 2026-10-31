@@ -59,6 +59,12 @@ extract-union: extract-all union
 summarize:
 	@echo "build_summaries.py rimosso — le aggregazioni sono nei mart SQL"
 
+# Ricalcola il finding per famiglia (le cifre del README sono arrotondate:
+# questo è il comando per aggiornarle/verificarle).
+.PHONY: findings
+findings:
+	$(PYTHON) scripts/findings.py $(ARGS)
+
 # --- Layer toolkit (raw local_file -> clean -> mart) ---
 
 .PHONY: run-senato-corpus
@@ -98,14 +104,14 @@ all: extract summarize
 
 .PHONY: test
 test: install
-	$(VENV_PYTHON) -m pytest tests/ -v --tb=short
+	$(VENV_PYTHON) -m pytest tests/ dashboard/tests -v --tb=short
 
 # --- CI (auto-sufficiente da checkout pulito) ---
 
 .PHONY: ci
 ci: install
-	$(VENV_PYTHON) -m pytest tests/ -v --tb=short
-	# smoke: mini repo git + extract + summarize (nessuna rete)
+	$(VENV_PYTHON) -m pytest tests/ dashboard/tests -v --tb=short
+	# smoke: mini repo git + extract (nessuna rete)
 	rm -rf /tmp/senato-smoke
 	mkdir -p /tmp/senato-smoke/Leg19/Atto00055177/ddlpres
 	cp tests/fixtures/sample.akn.xml \
