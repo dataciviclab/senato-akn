@@ -14,30 +14,38 @@ source:
 scope:
   legislature: [Leg14, Leg15, Leg16, Leg17, Leg18, Leg19]
   document_types:
-    - ddlpres        # disegni di legge presentati ✅
-    - ddlmess        # messaggi Camera-Senato ✅
-    - ddlcomm        # relazioni commissione ✅
-    - emend          # emendamenti Aula ✅
-    - emendc         # emendamenti Commissione ✅
-    - resaula        # resoconti Aula (parser da estendere)
-    - sommcomm       # resoconti Commissione (parser da estendere)
+    - ddlpres        # disegni di legge presentati (Leg16–Leg19)
+    - ddlmess        # messaggi Camera-Senato (Leg17–Leg19)
+    - ddlcomm        # relazioni commissione (Leg17–Leg19)
+    - emend          # emendamenti Aula (Leg14–Leg19)
+    - emendc         # emendamenti Commissione (Leg14–Leg19)
+    - resaula        # resoconti Aula, parser an:debate (Leg17–Leg19)
+    - sommcomm       # resoconti Commissione, parser an:debate (Leg18–Leg19)
+  coverage_notes:
+    - "Leg14–Leg15: solo emend/emendc"
+    - "Leg16: 14 ddlpres, nessun dibattito"
+    - "Leg17: 3 resoconti Aula e 0 resoconti Commissione nell'upstream"
+    - "Leg18–Leg19: corpus completo (atti, emendamenti, dibattito)"
   public_stage: public
 
 outputs:
-  derived: data/derived/
-  csv_pattern: "{legislatura}_{tipologie}_v0.csv"
+  derived: data/derived/          # gitignored, effimero (runner GitHub)
+  published:
+    clean: "gs://dataciviclab-clean/senato-akn/"
+    mart: "gs://dataciviclab-mart/senato-akn/"
+  format: parquet
 
 infrastructure:
   ci:
-    - test: PR + push (smoke extract + pytest)
-    - build: on demand via workflow_dispatch (ddlpres)
-    - build-full: on demand via workflow_dispatch (ddlpres,emend,ddlmess,ddlcomm)
-  schedule: "0 6 1 * *" # mensile — estrazione incrementale + toolkit run
-  artifacts:
-    retention: 30-60 giorni
+    - test: PR + push (pytest core + dashboard, smoke extract)
+    - pipeline: post-merge + schedule mensile (make pipeline → GCS + registry PR)
+  schedule: "0 6 1 * *" # mensile — estrazione completa + toolkit run
+  pipeline_runtime: "~25 min (clone 11 GB + parse ~1,4 M file)"
+  artifacts: "nessuno — la pubblicazione è su GCS (clean + mart)"
 
 decisions:
-  toolkit: no
+  toolkit: yes # 3 dataset raw→clean→mart (senato-corpus, senato-dibattito, senato-emendamenti)
   dataset_incubator: no
   public_discussion: yes
-  next_step: "bridge dibattito → open-politica + incrocio con italia-corpus (F5)"
+  extraction: "full refresh mensile, non incrementale: i parquet derivati non sopravvivono al runner"
+  next_step: "incrocio proposto (Senato) vs legge vigente (italia-corpus) — F5"
