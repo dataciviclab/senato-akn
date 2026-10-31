@@ -1,19 +1,47 @@
 """Scheda Atto — Vista completa di un singolo atto legislativo."""
 
+import re
+
 import streamlit as st
 from lab_connectors.formatters import fmt_num
-from sources import load_mart, query_clean
+from sources import dedup_atti, load_mart, ordina_atti_per_emendamenti, query_clean
 
 # ── Selezione atto ─────────────────────────────────────────────────
 df_mart = load_mart("senato_corpus", "mart_per_atto")
-atti = df_mart[["atto_num"]].dropna().copy()
+# un atto pubblico = (legislatura, fase): l'upstream replica lo stesso atto
+# in più directory Atto, quindi atto_num non è univoco per atto.
+df_mart = dedup_atti(df_mart)
+has_fase = {"fase", "legislatura"}.issubset(df_mart.columns)
+
+# ordina per intensità emendativa: il default non deve essere un atto senza
+# emendamenti (prima si apriva sull'atto_num più alto, spesso a 0).
+try:
+    df_em = load_mart("senato_emendamenti", "mart_emendamenti_per_fase")
+    df_mart = ordina_atti_per_emendamenti(df_mart, df_em)
+except Exception:
+    df_mart = df_mart.sort_values("atto_num", ascending=False)
+
+atti = df_mart.dropna(subset=["atto_num"]).copy()
 atti["atto_num"] = atti["atto_num"].astype(int)
-atti = atti.sort_values("atto_num", ascending=False)
 
-atto_num = int(st.selectbox("Seleziona atto", atti["atto_num"].tolist(),
-                             format_func=lambda x: f"S.{x}"))
+# Mappa atto → (fase, legislatura). La chiave dell'atto è `fase` (S.NNN):
+# `atto_num` è l'id interno/directory, che non coincide con la numerazione
+# pubblica. Fallback su atto_num per gli snapshot senza la colonna `fase`.
+fase_by_atto: dict[int, tuple[str, str]] = {}
+if has_fase:
+    for _, row in atti.iterrows():
+        fase_by_atto[int(row["atto_num"])] = (str(row["fase"]), str(row["legislatura"]))
 
-# ── Query: tutto filtrato per atto_num ─────────────────────────────
+
+def _label(atto: int) -> str:
+    fase = fase_by_atto.get(atto)
+    # il numero S.NNN si ripete tra legislature: serve la legislatura
+    return f"{fase[0]} ({fase[1]})" if fase else f"S.{atto}"
+
+
+atto_num = int(st.selectbox("Seleziona atto", atti["atto_num"].tolist(), format_func=_label))
+
+# ── Query: corpus per atto_num, emendamenti per fase (chiave dell'atto) ──
 atto_corpus = query_clean("senato_corpus",
     f"SELECT doc_title, tipologia, famiglia, work_date, text_len, "
     f"articles_count, paragraphs_count "
@@ -23,23 +51,31 @@ atto_dib = query_clean("senato_dibattito",
     f"SELECT nome_oratore, senatore_id, tipologia, text_len, data_seduta "
     f"FROM clean_input WHERE atto_num = {atto_num}")
 
+fase_leg = fase_by_atto.get(atto_num)
+if fase_leg and re.fullmatch(r"S\.\d+", fase_leg[0]) and re.fullmatch(r"Leg\d+", fase_leg[1]):
+    emend_filter = f"fase = '{fase_leg[0]}' AND legislatura = '{fase_leg[1]}'"
+else:
+    # snapshot senza `fase`: comportamento precedente (può essere incompleto
+    # dopo la dedup delle copie upstream)
+    emend_filter = f"atto_num = {atto_num}"
+
 atto_emend = query_clean("senato_emendamenti",
     f"SELECT COUNT(*) as n_emend, "
     f"SUM(CASE WHEN tipologia='emend' THEN 1 ELSE 0 END) as n_aula, "
     f"SUM(CASE WHEN tipologia='emendc' THEN 1 ELSE 0 END) as n_commissione, "
     f"SUM(text_len) as testo_emend "
-    f"FROM clean_input WHERE atto_num = {atto_num}")
+    f"FROM clean_input WHERE {emend_filter}")
 
 # ── Estrai dati ────────────────────────────────────────────────────
 if not atto_corpus.empty:
     r = atto_corpus.iloc[0]
-    doc_title = str(r.get("doc_title", "")) or f"Atto S.{atto_num}"
+    doc_title = str(r.get("doc_title", "")) or f"Atto {_label(atto_num)}"
     famiglia = str(r.get("famiglia", "")) or "—"
     work_date = str(r.get("work_date", ""))[:10] or "—"
     text_len = int(r["text_len"]) if r.get("text_len") else 0
     articles_count = int(r["articles_count"]) if r.get("articles_count") else 0
 else:
-    doc_title, famiglia, work_date, text_len, articles_count = f"Atto S.{atto_num}", "—", "—", 0, 0
+    doc_title, famiglia, work_date, text_len, articles_count = f"Atto {_label(atto_num)}", "—", "—", 0, 0
 
 n_interventi = len(atto_dib)
 n_oratori = int(atto_dib["senatore_id"].nunique()) if n_interventi > 0 else 0
@@ -51,7 +87,7 @@ n_commissione = int(atto_emend["n_commissione"].sum()) if not atto_emend.empty e
 testo_emend = int(atto_emend["testo_emend"].sum()) if not atto_emend.empty else 0
 
 # ── Header ─────────────────────────────────────────────────────────
-st.title(f"S.{atto_num}")
+st.title(_label(atto_num))
 st.subheader(doc_title)
 st.caption(f"**{famiglia}** · {work_date} · {articles_count} articoli")
 st.markdown("---")

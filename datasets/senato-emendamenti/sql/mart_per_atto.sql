@@ -1,6 +1,10 @@
--- mart_emendamenti_per_atto.sql — intensità emendativa per atto
+-- mart_emendamenti_per_atto.sql — intensità emendativa per directory Atto
 --
--- Una riga per atto_num. Conta emendamenti e testo totale.
+-- ATTENZIONE: `atto_num` è la directory `AttoNNNNN` del file, NON l'id
+-- dell'atto. L'upstream replica gli stessi emendamenti in più directory, e
+-- per alcune fasi la directory non coincide con l'atto. Per le classifiche
+-- usare `mart_emendamenti_per_fase` (chiave: fase S.NNN = atto).
+-- Questa tabella resta per compatibilità con i consumer esistenti.
 
 SELECT
     atto_num,

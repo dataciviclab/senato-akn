@@ -6,6 +6,9 @@
 
 SELECT
     TRY_CAST(regexp_extract(atto_dir, 'Atto(\d+)', 1) AS BIGINT) AS atto_num,
+    -- Numero pubblico dell'atto (S.NNN) dal work_uri: /Ddl/<data>/<N>.
+    -- È la chiave del bridge verso senato_ddl e verso gli emendamenti.
+    'S.' || regexp_extract(work_uri, 'Ddl/[0-9-]+/(\d+)', 1)     AS fase,
     normalize_string(legislatura)                                 AS legislatura,
     normalize_string(tipologia)                                   AS tipologia,
     normalize_string(doc_type)                                    AS doc_type,

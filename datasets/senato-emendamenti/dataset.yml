@@ -5,7 +5,7 @@ schema_version: 1
 dataset:
   name: "senato_emendamenti"
   source_id: "senato_akn"
-  description: "Ogni emendamento presentato nelle legislature Leg14–Leg19 (Aula `emend` e Commissione `emendc`), dal corpus Akoma Ntoso. Un documento per riga, con la fase dell'atto a cui si riferisce (S.NNN) — bridge verso senato_ddl."
+  description: "Ogni emendamento presentato nelle legislature Leg14–Leg19 (Aula `emend` e Commissione `emendc`), dal corpus Akoma Ntoso. Un documento per riga, deduplicato dalle copie che l'upstream replica in più directory Atto; la `fase` (S.NNN) è l'atto a cui si riferisce ed è la chiave del bridge verso senato_ddl."
   tags: [politica, senato, emendamenti, iter, intensita]
   category: politica
   years: [2026]
@@ -28,25 +28,34 @@ clean:
   read:
     source: auto
     mode: latest
-  required_columns: [fase, emend_id, tipologia, active_ref, text_len]
+  required_columns: [fase, emend_id, tipologia, active_ref, text_len, n_copie, n_atti_dir, n_atti_fase]
   validate:
-    not_null: [fase, emend_id]
-    # una riga = un documento emendamento (path univoco; document_id può
-    # ripetersi perché l'upstream ha lo stesso file in più Atto dir)
-    primary_key: [path]
+    not_null: [fase, emend_id, document_id]
+    # una riga = un documento emendamento: (legislatura, fase, document_id).
+    # `path` non basta: l'upstream replica lo stesso file in più directory
+    # Atto e il clean deduplica su questa chiave (n_copie dice quante).
+    primary_key: [legislatura, fase, document_id]
     min_rows: 100000
 
 mart:
   tables:
     - name: "mart_emendamenti_per_atto"
       sql: "sql/mart_per_atto.sql"
+    - name: "mart_emendamenti_per_fase"
+      sql: "sql/mart_per_fase.sql"
   required_tables:
     - "mart_emendamenti_per_atto"
+    - "mart_emendamenti_per_fase"
   validate:
     table_rules:
       mart_emendamenti_per_atto:
         required_columns: [atto_num, n_emend, testo_totale, n_aula, n_commissione]
         primary_key: [atto_num]
+        min_rows: 100
+      # chiave canonica: l'atto (fase S.NNN), non la directory Atto
+      mart_emendamenti_per_fase:
+        required_columns: [legislatura, fase, n_emend, testo_totale, n_aula, n_commissione, n_target_distinti]
+        primary_key: [legislatura, fase]
         min_rows: 100
 
 validation:
