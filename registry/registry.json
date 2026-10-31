@@ -7,7 +7,7 @@
     {
       "slug": "senato_corpus",
       "name": "Senato Corpus",
-      "description": "Corpus Akoma Ntoso del Senato (Leg14–Leg19): ogni documento legislativo (ddlpres, emend, ddlcomm, ddlmess) con famiglia, peso testuale e articoli. Deriva dall'estrazione XML di senato-akn; atto_num collega a senato_ddl via ddl_url (/ddl/N).",
+      "description": "Corpus Akoma Ntoso del Senato (ddlpres Leg16–Leg19, ddlmess Leg17–Leg19, ddlcomm Leg16–Leg19): ogni disegno di legge, messaggio e relazione di commissione con famiglia, peso testuale e articoli. Emendamenti e dibattito sono dataset separati. Deriva dall'estrazione XML di senato-akn; atto_num collega a senato_ddl via ddl_url (/ddl/N).",
       "source": "",
       "source_id": "senato_akn",
       "period": {
@@ -202,7 +202,7 @@
     {
       "slug": "senato_dibattito",
       "name": "Senato Dibattito",
-      "description": "Ogni intervento parlamentare nelle legislature Leg14–Leg19 (Aula `resaula` e Commissione `sommcomm`), dal corpus Akoma Ntoso. Una riga = un intervento, con oratore (bridge osr:Persona → senato_anagrafica) e testo.",
+      "description": "Ogni intervento parlamentare (Aula `resaula` e Commissione `sommcomm`) dal corpus Akoma Ntoso. Copertura reale Leg18–Leg19; in Leg17 l'upstream ha solo 3 resoconti d'Aula (1 seduta pubblicata) e nessun resoconto di Commissione, Leg14–Leg16 non hanno dibattito. Una riga = un intervento, con oratore (bridge osr:Persona → senato_anagrafica) e testo.",
       "source": "",
       "source_id": "senato_akn",
       "period": {
