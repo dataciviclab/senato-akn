@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
+
 from senato_akn.parser import (
     _amendment_act_ref,
     _amendment_text,
