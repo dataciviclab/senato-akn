@@ -59,10 +59,9 @@ letto dal registry; cache 1h.
 
 ## Debito noto
 
-- `senato_akn/summarize.py` non è più usato (target `make summarize` no-op)
 - 10 documenti Leg17 con `work_date` pre-2013 (probabile errore upstream)
-- ruff/mypy non sono in CI (2 + 7 errori noti)
-- `leg_unified_ddlpres_v0.parquet` contiene anche ddlmess/ddlcomm (nome storico)
+- `pct_documenti`/`pct_testo` in `mart_famiglie` non sono esclusive: la somma
+  può superare il 100% (documenti multi-famiglia)
 
 ## Prossimi passi
 
