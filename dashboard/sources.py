@@ -17,16 +17,13 @@ Due cose che qui NON vanno hardcoded:
 
 from __future__ import annotations
 
-import re
-import urllib.request
 from datetime import date
 from pathlib import Path
 
-import duckdb
 import streamlit as st
 from lab_connectors.duckdb.queries import load_mart_table as _load_mart_table
 from lab_connectors.duckdb.queries import query_clean as _query_clean
-from lab_connectors.gcs.paths import https_url
+from lab_connectors.registry import Registry, latest_published_year
 
 # Prefisso GCS del repo — contratto: repo-slug.
 PREFIX = "senato-akn/"
@@ -48,27 +45,12 @@ def get_registry():
 def published_year(slug: str) -> int:
     """Anno della partizione pubblicata per ``slug``.
 
-    Ordine di risoluzione: registry → HEAD su GCS → anno corrente.
+    Ordine di risoluzione (in ``lab_connectors.registry``): registry →
+    HEAD su GCS. Se non esiste ancora nessuna partizione si usa l'anno
+    corrente (la pipeline pubblica sotto l'anno di esecuzione).
     """
-    registry = get_registry()
-    if registry is not None:
-        for dataset in registry.datasets:
-            if dataset.slug != slug:
-                continue
-            match = re.search(r"/(\d{4})/", dataset.location.path)
-            if match:
-                return int(match.group(1))
-
-    current = date.today().year
-    for year in range(current + 1, current - 3, -1):
-        url = https_url("clean", "clean_parquet", prefix=PREFIX, slug=slug, year=year)
-        try:
-            request = urllib.request.Request(url, method="HEAD")
-            with urllib.request.urlopen(request, timeout=3):
-                return year
-        except OSError:
-            continue
-    return current
+    year = latest_published_year(get_registry() or Registry(), slug, prefix=PREFIX)
+    return year or date.today().year
 
 
 def dedup_atti(df_mart):
@@ -102,57 +84,19 @@ def ordina_atti_per_emendamenti(df_atti, df_em):
     return merged.sort_values("n_emend", ascending=False)
 
 
-def is_local_missing(exc: Exception) -> bool:
-    """True se l'errore è un file locale mancante (out/ parziale).
-
-    `lab-connectors` auto-rileva `out/data/` e risolve in locale: se un
-    dataset non è stato costruito in locale, il file manca e la dashboard
-    deve poter ripiegare su GCS invece di mostrare l'errore.
-    """
-    return "No files found that match the pattern" in str(exc)
-
-
-def _load_remote_mart(slug: str, table: str, year: int):
-    """Legge un mart direttamente da GCS (fallback su out/ parziale)."""
-    url = https_url("mart", "mart_parquet", prefix=PREFIX, slug=slug, year=year, table=table)
-    con = duckdb.connect(":memory:")
-    try:
-        return con.execute(f"SELECT * FROM read_parquet('{url}')").df()
-    finally:
-        con.close()
-
-
-def _query_remote_clean(slug: str, sql: str, year: int):
-    """Esegue SQL sul clean GCS (fallback su out/ parziale)."""
-    url = https_url("clean", "clean_parquet", prefix=PREFIX, slug=slug, year=year)
-    con = duckdb.connect(":memory:")
-    try:
-        return con.execute(
-            f"WITH clean_input AS (SELECT * FROM read_parquet('{url}')) {sql}"
-        ).df()
-    finally:
-        con.close()
-
-
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_mart(slug: str, table: str, year: int | None = None):
-    """Carica un mart pubblicato come DataFrame (cached 1h)."""
+    """Carica un mart pubblicato come DataFrame (cached 1h).
+
+    ``fallback_remote`` gestisce il caso ``out/data`` parziale: se il file
+    locale manca, lab-connectors riprova una volta su GCS.
+    """
     year = year or published_year(slug)
-    try:
-        return _load_mart_table(slug, table, year, prefix=PREFIX)
-    except Exception as exc:
-        if not is_local_missing(exc):
-            raise
-        return _load_remote_mart(slug, table, year)
+    return _load_mart_table(slug, table, year, prefix=PREFIX, fallback_remote=True)
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def query_clean(slug: str, sql: str, year: int | None = None):
     """Esegue SQL sul clean pubblicato (cached 1h)."""
     year = year or published_year(slug)
-    try:
-        return _query_clean(slug, sql, [year], prefix=PREFIX)
-    except Exception as exc:
-        if not is_local_missing(exc):
-            raise
-        return _query_remote_clean(slug, sql, year)
+    return _query_clean(slug, sql, [year], prefix=PREFIX, fallback_remote=True)

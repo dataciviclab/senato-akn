@@ -62,7 +62,7 @@ def test_load_mart_passes_prefix(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert captured["slug"] == "senato_corpus"
     assert captured["year"] == 2099
-    assert captured["kwargs"] == {"prefix": "senato-akn/"}
+    assert captured["kwargs"] == {"prefix": "senato-akn/", "fallback_remote": True}
 
 
 def test_query_clean_passes_prefix(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -76,36 +76,22 @@ def test_query_clean_passes_prefix(monkeypatch: pytest.MonkeyPatch) -> None:
     sources.query_clean("senato_corpus", "SELECT 1 FROM clean_input", 2099)
 
     assert captured["years"] == [2099]
-    assert captured["kwargs"] == {"prefix": "senato-akn/"}
+    assert captured["kwargs"] == {"prefix": "senato-akn/", "fallback_remote": True}
 
 
-def test_is_local_missing_riconosce_l_errore_duckdb() -> None:
-    missing = RuntimeError(
-        "IO Error: No files found that match the pattern '/tmp/out/data/mart/x.parquet'"
-    )
-    assert sources.is_local_missing(missing) is True
-    assert sources.is_local_missing(RuntimeError("HTTP 404")) is False
-
-
-def test_load_mart_ripiega_su_gcs_se_out_e_parziale(
+def test_load_mart_usa_il_fallback_remote_di_lab_connectors(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def local_missing(*args: object, **kwargs: object):
-        raise RuntimeError(
-            "IO Error: No files found that match the pattern '/tmp/out/data/mart/x.parquet'"
-        )
+    captured: dict[str, object] = {}
 
-    called: dict[str, object] = {}
-
-    def remote(slug: str, table: str, year: int):
-        called.update(slug=slug, table=table, year=year)
+    def fake_load(slug: str, table: str, year: int, **kwargs: object):
+        captured.update(slug=slug, table=table, year=year, kwargs=kwargs)
         return "remote"
 
-    monkeypatch.setattr(sources, "_load_mart_table", local_missing)
-    monkeypatch.setattr(sources, "_load_remote_mart", remote)
+    monkeypatch.setattr(sources, "_load_mart_table", fake_load)
 
     assert sources.load_mart("senato_corpus", "mart_famiglie", 2097) == "remote"
-    assert called == {"slug": "senato_corpus", "table": "mart_famiglie", "year": 2097}
+    assert captured["kwargs"] == {"prefix": "senato-akn/", "fallback_remote": True}
 
 
 def test_load_mart_non_nasconde_altri_errori(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -118,25 +104,19 @@ def test_load_mart_non_nasconde_altri_errori(monkeypatch: pytest.MonkeyPatch) ->
         sources.load_mart("senato_corpus", "mart_famiglie", 2096)
 
 
-def test_query_clean_ripiega_su_gcs_se_out_e_parziale(
+def test_query_clean_usa_il_fallback_remote_di_lab_connectors(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def local_missing(*args: object, **kwargs: object):
-        raise RuntimeError(
-            "IO Error: No files found that match the pattern '/tmp/out/data/clean/x.parquet'"
-        )
+    captured: dict[str, object] = {}
 
-    called: dict[str, object] = {}
-
-    def remote(slug: str, sql: str, year: int):
-        called.update(slug=slug, sql=sql, year=year)
+    def fake_query(slug: str, sql: str, years: list[int], **kwargs: object):
+        captured.update(slug=slug, sql=sql, years=years, kwargs=kwargs)
         return "remote"
 
-    monkeypatch.setattr(sources, "_query_clean", local_missing)
-    monkeypatch.setattr(sources, "_query_remote_clean", remote)
+    monkeypatch.setattr(sources, "_query_clean", fake_query)
 
     assert sources.query_clean("senato_dibattito", "SELECT 1", 2095) == "remote"
-    assert called["slug"] == "senato_dibattito"
+    assert captured["kwargs"] == {"prefix": "senato-akn/", "fallback_remote": True}
 
 
 def test_dedup_atti_tiene_una_riga_per_fase() -> None:
