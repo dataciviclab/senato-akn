@@ -17,8 +17,12 @@
 -- Drop di colonne raw (tecniche/FRBR non necessarie a livello intervento):
 -- atto_dir, file_name, raw_url, work_uri, expression_uri, manifestation_uri,
 -- work_date (→ data_seduta), expression_date, manifestation_date, doc_title,
--- short_title, articles_count, paragraphs_count, text_preview, doc_type,
+-- short_title, articles_count, doc_type,
 -- speakers (unnestato), legislatura (perimetro XIX), famiglie per doc.
+--
+-- `text_preview` NON è un passthrough del raw: quello è a livello documento
+-- (incipit del resoconto), mentre la riga qui è l'intervento. L'anteprima è
+-- derivata dal testo dello speech (`s.unnest."text"`), come `text_len`.
 --
 -- Esclusi gli speech segnaposto dell'upstream (by="#p" as="", senza oratore):
 -- 5.883 in resaula, interventi non attribuibili → fuori dal perimetro.
@@ -40,6 +44,9 @@ SELECT
     normalize_string(s.unnest.ruolo)          AS ruolo,
     s.ordinality                              AS ordine_intervento,
     TRY_CAST(length(s.unnest."text") AS BIGINT) AS text_len,
+    -- anteprima ≤240 char dell'intervento: i consumer che non leggono il
+    -- testo pieno (liste, evidenza degli edge) leggono solo questa colonna
+    LEFT(s.unnest."text", 240)                AS text_preview,
     s.unnest."text"                           AS text_intervento
 FROM raw_input
 CROSS JOIN UNNEST(speakers) WITH ORDINALITY AS s

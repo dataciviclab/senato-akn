@@ -32,12 +32,14 @@ clean:
   read:
     source: auto
     mode: latest
-  required_columns: [tipologia, data_seduta, document_id, path, legislatura, senatore_id, persona_id, nome_oratore, ruolo, text_len]
+  required_columns: [tipologia, data_seduta, document_id, path, legislatura, senatore_id, persona_id, nome_oratore, ruolo, text_len, text_preview]
   validate:
     # Transizione raw→clean: cambio di granularità INTENZIONALE (documenti →
     # interventi, via UNNEST). Le 18 colonne rimosse sono i campi a livello
     # documento (URI FRBR, titoli, conteggi) — il dettaglio vive nel resoconto;
     # qui restano i campi per intervento. Il drop è documentato in clean.sql.
+    # Eccezione: `text_preview` sopravvive **cambiando semantica** (anteprima
+    # dello speech, non del resoconto): stessa colonna, altra granularità.
     transition:
       warn_removed_columns: false
     not_null: [senatore_id, text_len]

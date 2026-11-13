@@ -39,6 +39,11 @@ WITH raw AS (
         -- URI canonici
         normalize_string(work_uri)                              AS work_uri,
         normalize_string(doc_title)                             AS doc_title,
+        -- anteprima ≤240 char del testo (già calcolata dal parser e presente
+        -- nella raw): i consumer che non leggono il testo pieno — liste,
+        -- evidenza degli edge — leggono solo questa colonna.
+        -- Stessa granularità della riga (documento emendamento).
+        LEFT(text_preview, 240)                                 AS text_preview,
         text_integrale
     FROM raw_input
     WHERE work_uri LIKE '%/Emend/S/%'
@@ -90,6 +95,7 @@ SELECT
     d.legislatura,
     d.work_date,
     d.text_len,
+    d.text_preview,
     d.FRBRsubtype,
     d.FRBRnumber,
     d.FRBRname,
