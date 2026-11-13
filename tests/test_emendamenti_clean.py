@@ -38,6 +38,7 @@ _COLUMNS = [
     "active_ref",
     "active_ref_href",
     "doc_title",
+    "text_preview",
     "text_integrale",
 ]
 
@@ -74,6 +75,7 @@ def _row(**overrides) -> dict:
         "work_date": "2014-12-16",
         "text_len": "100",
         "doc_title": None,
+        "text_preview": "testo",
         "text_integrale": "testo",
     }
     base.update(overrides)
@@ -127,3 +129,21 @@ def test_fase_derivata_da_work_uri_e_righe_senza_fase_escluse() -> None:
 
     assert len(rows) == 1
     assert rows[0][columns.index("fase")] == "S.10"
+
+
+def test_text_preview_esposta_e_limitata_a_240() -> None:
+    """`text_preview` è la colonna che i consumer leggono al posto del testo.
+
+    legal-graph legge 157,5 MB di `text_integrale` per produrre 100 caratteri
+    di evidenza: con la preview legge ~35 MB. Se il passthrough sparisce, il
+    mart downstream non ha più da dove leggere senza il testo pieno.
+    """
+    lungo = "y" * 400
+    columns, rows = _run([_row(text_preview=lungo, text_integrale=lungo)])
+
+    assert "text_preview" in columns
+    preview = rows[0][columns.index("text_preview")]
+    assert len(preview) == 240, "la clean deve troncare la preview a 240 char"
+    assert preview == lungo[:240]
+    # il testo integrale resta intero: la preview non lo sostituisce
+    assert rows[0][columns.index("text_integrale")] == lungo
