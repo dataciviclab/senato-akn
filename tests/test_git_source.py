@@ -2,7 +2,7 @@
 import subprocess
 from pathlib import Path
 
-from senato_akn.git_source import ensure_repo, list_entries, read_local
+from senato_akn.git_source import _same_tree, ensure_repo, list_entries, read_local
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
 
@@ -67,3 +67,20 @@ class TestEnsureRepo:
         result = ensure_repo(repo, "Leg19")
         assert result == repo
         assert (repo / "Leg19").exists()
+
+
+class TestSameTree:
+    """Regressione: il checkout pieno (68 s su 158k file) va evitato se
+    l'albero della legislatura non è cambiato."""
+
+    def test_stesso_ref_stesso_albero(self, tmp_path: Path) -> None:
+        repo = _make_repo(tmp_path)
+        assert _same_tree(repo, "Leg19", "HEAD", "HEAD") is True
+
+    def test_legislatura_assente_non_confrontabile(self, tmp_path: Path) -> None:
+        repo = _make_repo(tmp_path)
+        assert _same_tree(repo, "Leg99", "HEAD", "HEAD") is False
+
+    def test_ref_inesistente_non_confrontabile(self, tmp_path: Path) -> None:
+        repo = _make_repo(tmp_path)
+        assert _same_tree(repo, "Leg19", "HEAD", "ref-che-non-esiste") is False

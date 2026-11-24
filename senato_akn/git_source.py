@@ -31,6 +31,27 @@ def _run(cwd: str | Path, *args: str) -> subprocess.CompletedProcess:
     )
 
 
+def _same_tree(repo_dir: str | Path, legislatura: str, ref_a: str, ref_b: str) -> bool:
+    """True se ``<ref_a>:<legislatura>`` e ``<ref_b>:<legislatura>`` sono lo stesso albero.
+
+    Serve a decidere se il working tree va rifatto: se l'albero della
+    legislatura non è cambiato, i file su disco sono già corretti.
+
+    Un ref che non risolve (legislatura assente in quel commit) non è
+    confrontabile: si risponde ``False``, così il chiamante fa il checkout
+    pieno invece di fidarsi di un confronto vuoto.
+    """
+
+    def tree(ref: str) -> str:
+        try:
+            return _run(repo_dir, "rev-parse", f"{ref}:{legislatura}").stdout.strip()
+        except subprocess.CalledProcessError:
+            return ""
+
+    old, new = tree(ref_a), tree(ref_b)
+    return bool(old) and old == new
+
+
 def ensure_repo(repo_dir: str | Path, legislatura: str) -> Path:
     """Clona (o aggiorna) il repo upstream e materializza la legislatura.
 
@@ -70,7 +91,15 @@ def ensure_repo(repo_dir: str | Path, legislatura: str) -> Path:
     has_remote = _run(repo_dir, "remote").stdout.strip() != ""
     if has_remote:
         _run(repo_dir, "fetch", "--depth", "1", "origin", REPO_BRANCH)
-        _run(repo_dir, "reset", "--hard", "FETCH_HEAD")
+        if _same_tree(repo_dir, legislatura, "HEAD", "FETCH_HEAD"):
+            # Il contenuto della legislatura non è cambiato: il working tree è
+            # già corretto e `reset --hard` sarebbe solo un checkout di 2,2 GB
+            # (misurato: 68 s su 158k file). `--soft` porta avanti HEAD senza
+            # toccare i file, così `list_entries` (ls-tree HEAD) vede il nuovo
+            # albero e il delta resta corretto.
+            _run(repo_dir, "reset", "--soft", "FETCH_HEAD")
+        else:
+            _run(repo_dir, "reset", "--hard", "FETCH_HEAD")
         # Usa "add" se la legislature non è già in sparse-checkout,
         # "set" solo se è l'unica. Così non perdiamo legislature già
         # materializzate (es. Leg18 quando aggiungiamo Leg19).

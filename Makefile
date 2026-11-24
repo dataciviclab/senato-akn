@@ -16,6 +16,9 @@ install: $(VENV)
 LEGISLATURA ?= Leg19
 LEGISLATURE ?= Leg14 Leg15 Leg16 Leg17 Leg18 Leg19
 TIPOLOGIE_ALL = ddlpres,emend,emendc,ddlmess,ddlcomm,resaula,sommcomm
+# Stato del probe (legislatura → sha dell'ultimo commit che ne tocca la cartella).
+# Vuoto = primo run → tutte le legislature risultano da costruire.
+PROBE_STATE ?= data/state/fingerprints.json
 
 .PHONY: extract
 extract:
@@ -132,8 +135,56 @@ git-clone:
 		$(PYTHON) -c "from senato_akn.git_source import ensure_repo; ensure_repo('data/raw/akn', '$$leg')"; \
 	done
 
+# Materializza una sola legislatura (usato dal percorso incrementale).
+.PHONY: git-clone-leg
+git-clone-leg:
+	@echo "=== Materializza $(LEGISLATURA) ==="
+	@$(PYTHON) -c "from senato_akn.git_source import ensure_repo; ensure_repo('data/raw/akn', '$(LEGISLATURA)')"
+
+# Estrazione di una sola legislatura in modalità delta: richiede il parquet
+# precedente (data/derived) e il suo manifest accanto, altrimenti è un full.
+# Nessuna dipendenza da `git-clone-leg`: `scripts/extract.py` chiama già
+# `ensure_repo` al suo interno, e chiamarlo due volte raddoppia il fetch
+# (misurato: 10-48 s per fetch, 5 s per il parse a delta vuoto).
+.PHONY: extract-leg
+extract-leg:
+	$(PYTHON) scripts/extract.py --legislatura $(LEGISLATURA) --drop-zero-text --incremental
+
 .PHONY: pipeline
 pipeline: git-clone extract-all union run-all
+
+# --- Percorso incrementale (probe → solo le legislature cambiate) ---
+#
+# `pipeline` resta il full (contratto CI invariato). Qui il costo si sposta
+# sulla domanda giusta: quali legislature sono cambiate? L'upstream rifà un
+# commit ogni ora, ma solo i README: il fingerprint è quindi l'ultimo commit
+# che tocca la cartella della legislatura, non lo sha del branch.
+#
+# Effetto atteso: le legislature ferme da mesi (Leg14..Leg17) restano in cache,
+# si parsa solo il delta di Leg19 (1-2 file) invece di 6 legislature intere.
+
+.PHONY: probe
+probe:
+	@$(PYTHON) scripts/probe.py --legislatures "$(LEGISLATURE)" --state $(PROBE_STATE)
+
+.PHONY: probe-json
+probe-json:
+	@$(PYTHON) scripts/probe.py --legislatures "$(LEGISLATURE)" --state $(PROBE_STATE) --json
+
+.PHONY: pipeline-incremental
+pipeline-incremental:
+	@changed="$$($(PYTHON) scripts/probe.py --legislatures "$(LEGISLATURE)" --state $(PROBE_STATE))"; \
+	if [ -z "$$changed" ]; then \
+		echo "probe: nessuna legislatura cambiata, niente da costruire"; \
+		exit 0; \
+	fi; \
+	echo "probe: da aggiornare → $$changed"; \
+	for leg in $$changed; do \
+		$(MAKE) extract-leg LEGISLATURA=$$leg || exit 1; \
+	done; \
+	$(MAKE) union run-all && \
+	$(PYTHON) scripts/probe.py --legislatures "$(LEGISLATURE)" --state $(PROBE_STATE) --update > /dev/null && \
+	echo "probe: stato aggiornato ($(PROBE_STATE))"
 
 # --- Pulizia ---
 

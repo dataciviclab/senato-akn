@@ -5,6 +5,8 @@ data/derived/*
 !data/raw/.gitkeep
 !data/interim/.gitkeep
 !data/derived/.gitkeep
+# Stato del probe (sha upstream per legislatura): locale/CI, non è contratto
+data/state/
 
 # Output toolkit (raw/clean/mart)
 out/
