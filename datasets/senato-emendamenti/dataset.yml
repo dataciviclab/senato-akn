@@ -39,15 +39,27 @@ clean:
 
 mart:
   tables:
+    # Grano riga (legislatura, fase, emend_id): è il taglio che serve ai
+    # consumer che costruiscono archi emendamento → atto (legal-graph).
+    # Senza, ognuno riscrive il dedup e rilegge il clean intero.
+    - name: "mart_emendamenti"
+      sql: "sql/mart_emendamenti.sql"
     - name: "mart_emendamenti_per_atto"
       sql: "sql/mart_per_atto.sql"
     - name: "mart_emendamenti_per_fase"
       sql: "sql/mart_per_fase.sql"
   required_tables:
+    - "mart_emendamenti"
     - "mart_emendamenti_per_atto"
     - "mart_emendamenti_per_fase"
   validate:
     table_rules:
+      mart_emendamenti:
+        required_columns:
+          [legislatura, fase, emend_id, atto_num, n_atti_fase, tipologia,
+           work_date, text_preview, document_id, text_len]
+        primary_key: [legislatura, fase, emend_id]
+        min_rows: 100000
       mart_emendamenti_per_atto:
         required_columns: [atto_num, n_emend, testo_totale, n_aula, n_commissione]
         primary_key: [atto_num]
